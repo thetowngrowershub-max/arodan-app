@@ -112,7 +112,7 @@ export function HomeTab() {
       {active && (
         <Pressable onPress={() => push({ name: 'tracking', id: active.id })} style={{ backgroundColor: colors.accent, borderRadius: radius.card, padding: 18, gap: 6 }}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Txt v="label" color={colors.onAccent}>Active order · {active.id}</Txt>
+            <Txt v="label" color={colors.onAccent}>Active order · {active.code}</Txt>
             <Icon name="chevron" color={colors.onAccent} size={18} />
           </Row>
           <Txt v="h2" color={colors.onAccent}>{statusText[active.status]}</Txt>

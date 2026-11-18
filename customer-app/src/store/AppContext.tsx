@@ -1,6 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address, CartLine, Errand, Order, User } from '../api/types';
-import { ORDER_STEPS } from '../api/types';
+import { backend } from '../api';
 
 interface AppState {
   user: User | null;
@@ -22,15 +22,17 @@ interface AppState {
 
 const Ctx = createContext<AppState | null>(null);
 
-/** Demo only: how fast a placed order moves to the next step. */
+/** Demo only: how long an order waits before moving to its next step. */
 const STEP_MS = 9000;
 
-export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [address, setAddress] = useState<Address | null>(null);
+export function AppProvider({ children, initialUser = null, initialAddress = null }: { children: React.ReactNode; initialUser?: User | null; initialAddress?: Address | null }) {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [address, setAddress] = useState<Address | null>(initialAddress);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartErrands, setCartErrands] = useState<Errand[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const ordersRef = useRef(orders);
+  ordersRef.current = orders;
 
   const addToCart = useCallback((productId: string, qty = 1) => {
     setCart((c) => {
@@ -49,28 +51,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCartErrands([]);
   }, []);
 
-  const addOrder = useCallback((o: Order) => setOrders((os) => [o, ...os]), []);
+  const addOrder = useCallback((o: Order) => setOrders((os) => [o, ...os.filter((x) => x.id !== o.id)]), []);
   const updateOrder = useCallback((o: Order) => setOrders((os) => os.map((x) => (x.id === o.id ? o : x))), []);
 
-  // Simulated live tracking: advance active orders one step at a time.
+  // Load past orders and listen for live status changes once signed in.
+  const signedIn = !!user;
   useEffect(() => {
+    if (!signedIn) return;
+    backend.listOrders().then(setOrders).catch(() => {});
+    return backend.watchOrders(updateOrder);
+  }, [signedIn, updateOrder]);
+
+  // Demo tracking: move active orders one step at a time. On the real backend this only works while
+  // the server's demo_mode is on; otherwise riders move orders along from the rider app.
+  useEffect(() => {
+    const busy = new Set<string>();
+    let demoOff = false;
     const t = setInterval(() => {
-      setOrders((os) => {
-        let changed = false;
-        const next = os.map((o) => {
-          if (o.status === 'cancelled' || o.status === 'delivered') return o;
-          const i = ORDER_STEPS.indexOf(o.status);
-          const since = Date.now() - (o.statusTimes[o.status] ?? o.createdAt);
-          if (since < STEP_MS) return o;
-          changed = true;
-          const status = ORDER_STEPS[i + 1];
-          return { ...o, status, statusTimes: { ...o.statusTimes, [status]: Date.now() } };
-        });
-        return changed ? next : os;
-      });
+      if (demoOff) return;
+      for (const o of ordersRef.current) {
+        if (o.status === 'cancelled' || o.status === 'delivered' || busy.has(o.id)) continue;
+        const since = Date.now() - (o.statusTimes[o.status] ?? o.createdAt);
+        if (since < STEP_MS) continue;
+        busy.add(o.id);
+        backend
+          .advanceDemo(o)
+          .then((n) => {
+            if (n) updateOrder(n);
+            else demoOff = true;
+          })
+          .finally(() => busy.delete(o.id));
+      }
     }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [updateOrder]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -89,6 +103,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addOrder,
       updateOrder,
       signOut: () => {
+        backend.signOut();
         setUser(null);
         setAddress(null);
         setCart([]);
