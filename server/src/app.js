@@ -7,8 +7,9 @@ import { asUser, pool } from './db.js';
 import { signToken, verifyToken } from './token.js';
 import { messageCentralCheck, messageCentralEnabled, messageCentralSend, sendTermii } from './sms.js';
 import { getOrder, listOrders } from './orders.js';
+import { HttpError, str, UUID } from './http.js';
+import { merchantRoutes } from './merchant.js';
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** "0803 123 4567", "+234 803…", "803…" → "2348031234567". Null if not a Nigerian mobile number. */
 export function normalizePhone(input) {
@@ -20,18 +21,11 @@ export function normalizePhone(input) {
 
 const hashCode = (phone, code) => createHash('sha256').update(`${phone}:${code}:${config.jwtSecret}`).digest('hex');
 
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.statusCode = status;
-  }
-}
-
 // Database errors raised on purpose by our SQL functions ("raise exception") become 400s with their message.
 function dbError(e) {
   if (e?.code === 'P0001') return new HttpError(400, e.message);
   if (e?.code === '42501') return new HttpError(403, 'Not allowed');
-  if (e?.code === '22P02') return new HttpError(400, 'Invalid input');
+  if (e?.code === '22P02' || e?.code === '23503' || e?.code === '23514') return new HttpError(400, 'Invalid input');
   return e;
 }
 
@@ -42,7 +36,6 @@ function toAddress(a) {
   };
 }
 
-const str = (v, max = 200) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
 export async function buildApp(opts = {}) {
   const app = Fastify({ logger: opts.logger ?? true, trustProxy: true, bodyLimit: 64 * 1024 });
@@ -173,21 +166,24 @@ export async function buildApp(opts = {}) {
   });
 
   // ───────── Catalogue & pricing ─────────
+  // Every listing from merchants who are approved and open, as merchants add them in the merchant app.
+  // Sold-out listings are left out.
   app.get('/catalog', async () =>
     asUser(null, async (db) => {
       const [c, m, p, s, cfg] = await Promise.all([
         db.query('select id, name, emoji from categories order by sort'),
-        db.query('select id, name, area, distance_km as "distanceKm", duration_min as "durationMin" from merchants where active'),
+        db.query(`select id, name, area, distance_km as "distanceKm", duration_min as "durationMin" from merchants where active and status = 'live' and is_open`),
         db.query(`select id, name, category_id as category, price, unit, weight_kg as "weightKg", longest_side_cm as "longestSideCm",
-                         emoji, image_url as "imageUrl", merchant_id as "merchantId", rating, popular, description
-                  from products where active order by popular desc, name`),
+                         emoji, image_url as "imageUrl", merchant_id as "merchantId", rating, popular, description, stock
+                  from products where active and merchant_selling(merchant_id) and (stock is null or stock > 0)
+                  order by popular desc, created_at desc, name`),
         db.query('select id, name, distance_km as "distanceKm", duration_min as "durationMin" from errand_spots order by sort'),
         db.query('select config, demo_mode as "demoMode" from pricing_config where id = 1'),
       ]);
       return {
         categories: c.rows,
         merchants: m.rows,
-        products: p.rows.map((x) => ({ ...x, longestSideCm: x.longestSideCm ?? undefined, imageUrl: x.imageUrl ?? undefined })),
+        products: p.rows.map((x) => ({ ...x, longestSideCm: x.longestSideCm ?? undefined, imageUrl: x.imageUrl ?? undefined, stock: x.stock ?? undefined })),
         spots: s.rows,
         pricing: cfg.rows[0]?.config,
         demoMode: cfg.rows[0]?.demoMode ?? false,
@@ -255,6 +251,8 @@ export async function buildApp(opts = {}) {
       await db.query('select demo_advance_order($1)', [orderId(req)]);
       return getOrder(db, req.params.id);
     }));
+
+  await merchantRoutes(app, { auth });
 
   return app;
 }

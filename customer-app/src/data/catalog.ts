@@ -1,4 +1,5 @@
-// Mock catalogue. In production this comes from the B2B Merchant app / backend.
+// Offline demo catalogue. With the server, these arrays are refilled from GET /catalog, which lists
+// what merchants have added in the merchant app (merchant-app/).
 
 export type CategoryId = 'groceries' | 'household' | 'electronics' | 'gadgets' | 'drinks' | 'baby';
 
@@ -19,6 +20,8 @@ export interface Product {
   rating: number;
   popular?: boolean;
   description: string;
+  imageUrl?: string; // merchant's photo; the emoji is shown when there is none
+  stock?: number; // units left, when the merchant tracks stock
 }
 
 export const categories: Category[] = [

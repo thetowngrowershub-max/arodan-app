@@ -26,21 +26,25 @@ export function SearchBar({ value, onChange, onFocus }: { value?: string; onChan
   );
 }
 
+/** "Only 3 left" when a merchant's tracked stock is low. */
+const lowStock = (p: Product) => (p.stock !== undefined && p.stock <= 5 ? `Only ${p.stock} left` : undefined);
+const capQty = (p: Product, q: number) => (p.stock !== undefined ? Math.min(q, p.stock) : q);
+
 export function ProductCard({ p }: { p: Product }) {
   const { push } = useNav();
   const { cart, addToCart, setQty } = useApp();
   const qty = cart.find((l) => l.productId === p.id)?.qty ?? 0;
   return (
     <Pressable onPress={() => push({ name: 'product', id: p.id })} style={{ flex: 1, backgroundColor: colors.surface, borderRadius: radius.card, padding: 10, gap: 8 }}>
-      <ProductTile emoji={p.emoji} h={128} size={58} />
+      <ProductTile emoji={p.emoji} imageUrl={p.imageUrl} h={128} size={58} />
       <View style={{ paddingHorizontal: 4, gap: 2 }}>
         <Txt v="h3" numberOfLines={1}>{p.name}</Txt>
-        <Txt v="small" numberOfLines={1}>{p.unit}</Txt>
+        <Txt v="small" numberOfLines={1}>{lowStock(p) ?? p.unit}</Txt>
       </View>
       <Row style={{ justifyContent: 'space-between', paddingHorizontal: 4, paddingBottom: 2, minHeight: 36 }}>
         <Txt v="h3" weight="bold">{naira(p.price)}</Txt>
         {qty > 0 ? (
-          <Stepper qty={qty} onChange={(q) => setQty(p.id, q)} small />
+          <Stepper qty={qty} onChange={(q) => setQty(p.id, capQty(p, q))} small />
         ) : (
           <Pressable onPress={() => addToCart(p.id)} hitSlop={8} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="plus" color={colors.onPrimary} size={18} />
@@ -201,10 +205,11 @@ export function ProductScreen({ id }: { id: string }) {
     <View style={{ flex: 1 }}>
       <Header onBack={pop} right={<IconButton name="cart" badge={cart.reduce((s, l) => s + l.qty, 0)} onPress={() => push({ name: 'cart' })} />} />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 120 }}>
-        <ProductTile emoji={p.emoji} h={260} size={130} />
+        <ProductTile emoji={p.emoji} imageUrl={p.imageUrl} h={260} size={130} />
         <View style={{ gap: 4 }}>
           <Txt v="h1">{p.name}</Txt>
           <Txt color={colors.muted}>{p.unit}</Txt>
+          {lowStock(p) ? <Txt weight="semibold" color={colors.danger}>{lowStock(p)}</Txt> : null}
         </View>
         <Row style={{ justifyContent: 'space-between' }}>
           <Txt v="h1" color={colors.primary}>{naira(p.price)}</Txt>
@@ -230,7 +235,7 @@ export function ProductScreen({ id }: { id: string }) {
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 20, paddingBottom: 28, backgroundColor: colors.bg, flexDirection: 'row', gap: 12, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.line }}>
         {qty > 0 ? (
           <>
-            <Stepper qty={qty} onChange={(q) => setQty(id, q)} />
+            <Stepper qty={qty} onChange={(q) => setQty(id, capQty(p, q))} />
             <Button title="View cart" onPress={() => push({ name: 'cart' })} style={{ flex: 1 }} />
           </>
         ) : (

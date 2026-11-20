@@ -55,7 +55,7 @@ export function CartScreen() {
                   const p = productById(l.productId);
                   return (
                     <Row key={l.productId} style={{ gap: 12, paddingVertical: 6 }}>
-                      <View style={{ width: 56 }}><ProductTile emoji={p.emoji} h={56} size={28} /></View>
+                      <View style={{ width: 56 }}><ProductTile emoji={p.emoji} imageUrl={p.imageUrl} h={56} size={28} /></View>
                       <View style={{ flex: 1 }}>
                         <Txt v="h3" numberOfLines={1}>{p.name}</Txt>
                         <Txt v="small">{p.unit}</Txt>

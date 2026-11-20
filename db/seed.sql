@@ -12,12 +12,12 @@ insert into public.categories (id, name, emoji, sort) values
   ('baby', 'Baby care', '🍼', 5)
 on conflict (id) do update set name = excluded.name, emoji = excluded.emoji, sort = excluded.sort;
 
-insert into public.merchants (id, name, area, distance_km, duration_min) values
-  ('m1', 'Magodo Fresh Mart', 'Magodo Phase 2', 1.8, 9),
-  ('m2', 'Shangisha Home Store', 'Shangisha', 3.2, 14),
-  ('m3', 'Ikeja Gadget Hub', 'Computer Village, Ikeja', 11.5, 38),
-  ('m4', 'Ketu Market Stalls', 'Ketu', 5.6, 22)
-on conflict (id) do update set name = excluded.name, area = excluded.area, distance_km = excluded.distance_km, duration_min = excluded.duration_min;
+insert into public.merchants (id, name, area, distance_km, duration_min, area_id) values
+  ('m1', 'Magodo Fresh Mart', 'Magodo Phase 2', 1.8, 9, 'magodo2'),
+  ('m2', 'Shangisha Home Store', 'Shangisha', 3.2, 14, 'shangisha'),
+  ('m3', 'Ikeja Gadget Hub', 'Computer Village, Ikeja', 11.5, 38, 'ikeja'),
+  ('m4', 'Ketu Market Stalls', 'Ketu', 5.6, 22, 'alapere')
+on conflict (id) do update set name = excluded.name, area = excluded.area, distance_km = excluded.distance_km, duration_min = excluded.duration_min, area_id = excluded.area_id;
 
 insert into public.products (id, merchant_id, category_id, name, unit, price, weight_kg, longest_side_cm, emoji, rating, popular, description) values
   ('p1', 'm1', 'groceries', 'Ofada rice', '5 kg bag', 14500, 5, null, '🍚', 4.5, true, 'Ofada rice, sourced from a vetted Arodan merchant and delivered to your gate.'),

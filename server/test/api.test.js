@@ -13,6 +13,8 @@ before(async () => {
   app = await buildApp({ logger: false });
   const phones = "('2348031234567', '2348039999999', '2348051112222')";
   await pool.query(`delete from orders where customer_id in (select id from auth.users where phone in ${phones})`);
+  await pool.query(`delete from products where merchant_id in (select m.id from merchants m join auth.users u on u.id = m.owner_id where u.phone in ${phones})`);
+  await pool.query(`delete from merchants where owner_id in (select id from auth.users where phone in ${phones})`);
   await pool.query("delete from auth.users where phone in ('2348031234567', '2348039999999', '2348051112222')");
   await pool.query("delete from auth.otp_codes where phone in ('2348031234567', '2348039999999', '2348051112222')");
 });

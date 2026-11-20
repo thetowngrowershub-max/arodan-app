@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, TextProps, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, TextInputProps, TextProps, View, ViewStyle } from 'react-native';
 import { colors, font, radius } from '../theme';
 import { Icon, IconName } from './Icon';
 import { naira } from '../lib/format';
@@ -144,10 +144,10 @@ export function BillCard({ bill, surge }: { bill: Bill; surge?: number }) {
   );
 }
 
-export function ProductTile({ emoji, size = 64, h = 120 }: { emoji: string; size?: number; h?: number }) {
+export function ProductTile({ emoji, imageUrl, size = 64, h = 120 }: { emoji: string; imageUrl?: string; size?: number; h?: number }) {
   return (
-    <View style={{ height: h, borderRadius: radius.small + 4, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size }}>{emoji}</Text>
+    <View style={{ height: h, borderRadius: radius.small + 4, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+      {imageUrl ? <Image source={{ uri: imageUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors /> : <Text style={{ fontSize: size }}>{emoji}</Text>}
     </View>
   );
 }
