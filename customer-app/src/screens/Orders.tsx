@@ -104,6 +104,17 @@ export function TrackingScreen({ id }: { id: string }) {
           </View>
         ) : null}
 
+        {live && idx >= 1 && o.deliveryCode ? (
+          <Card tint style={{ gap: 4 }}>
+            <Row style={{ gap: 8 }}>
+              <Icon name="shield" color={colors.primary} />
+              <Txt v="label" color={colors.primary}>Delivery code</Txt>
+            </Row>
+            <Txt v="h1" style={{ letterSpacing: 8 }}>{o.deliveryCode}</Txt>
+            <Txt v="small" color={colors.ink}>Give this code to your rider only when you have your package. It confirms the hand-over.</Txt>
+          </Card>
+        ) : null}
+
         {o.rider && idx >= 1 && (
           <Card style={{ gap: 12 }}>
             <Row style={{ gap: 12 }}>

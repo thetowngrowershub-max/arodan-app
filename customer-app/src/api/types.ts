@@ -40,6 +40,8 @@ export interface Rider {
   rating: number;
   trips: number;
   checks: string[];
+  /** Rider's live position while the order is on its way (server only). */
+  location?: { lat: number; lng: number; heading: number | null; at: number };
 }
 
 export interface Order {
@@ -56,6 +58,8 @@ export interface Order {
   statusTimes: Partial<Record<OrderStatus, number>>;
   rider?: Rider;
   etaMin: number;
+  /** 4-digit code the customer gives the rider at hand-over (proof of delivery). */
+  deliveryCode?: string;
 }
 
 export interface Session { user: User; address: Address | null }
