@@ -56,5 +56,24 @@ do $$ declare n int; begin
   perform price_order('[{"product_id":"p1","qty":1}]', '[]');
   select count(*) into n from orders; if n <> 0 then raise exception 'FAIL: anon sees orders'; end if;
 end $$;
+
+-- Merchants (004_merchants.sql): A owns a shop, B (the customer above) does not
 reset role;
+update pricing_config set demo_mode = false;
+set role authenticated; set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$ declare m jsonb; pid text; n int; begin
+  m := register_merchant('{"name":"Ada Shop","address":"1 Test Road","phone":"08031234567","areaId":"magodo2"}');
+  if m ->> 'status' <> 'pending' then raise exception 'FAIL: new merchant not pending'; end if;
+  insert into products (merchant_id, category_id, name, price, stock) values (m ->> 'id', 'groceries', 'Test beans', 2000, 5) returning id into pid;
+  begin update products set popular = true where id = pid; raise exception 'FAIL: merchant set popular'; exception when insufficient_privilege then null; end;
+  begin update products set price = 1 where id = 'p1'; get diagnostics n = row_count; if n <> 0 then raise exception 'FAIL: edited seed product'; end if; end;
+  begin insert into products (merchant_id, category_id, name, price) values ('m1', 'groceries', 'Fake', 1); raise exception 'FAIL: listed for another merchant'; exception when insufficient_privilege then null; end;
+  begin perform account_number from merchants; raise exception 'FAIL: bank details readable'; exception when insufficient_privilege then null; end;
+end $$;
+reset request.jwt.claim.sub; set role anon;
+do $$ declare n int; begin
+  select count(*) into n from products where name = 'Test beans'; if n <> 0 then raise exception 'FAIL: pending merchant listing visible'; end if;
+end $$;
+reset role;
+update pricing_config set demo_mode = true;
 select 'ALL BACKEND TESTS PASSED';
