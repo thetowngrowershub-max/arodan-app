@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon';
 import { colors, font, radius } from '../theme';
 import { useNav } from '../nav';
 import { useApp } from '../store/AppContext';
-import { DEMO_OTP, saveProfile, sendOtp, verifyOtp } from '../api/mock';
+import { backend } from '../api';
 import type { Address } from '../api/types';
 
 const Wrap = ({ children }: { children: React.ReactNode }) => (
@@ -59,10 +59,14 @@ export function PhoneScreen() {
   const go = async () => {
     setBusy(true);
     setErr('');
-    const clean = phone.replace(/\s/g, '');
-    const r = await sendOtp(clean);
+    const clean = phone.replace(/\D/g, '');
+    if (!/^(0|234)?[789][01]\d{8}$/.test(clean)) {
+      setBusy(false);
+      return setErr('Enter a valid Nigerian mobile number, e.g. 0803 123 4567');
+    }
+    const r = await backend.sendOtp(clean);
     setBusy(false);
-    if (!r.ok) return setErr('Enter a valid Nigerian mobile number, e.g. 0803 123 4567');
+    if (!r.ok) return setErr(r.error ?? 'Could not send the code. Try again.');
     push({ name: 'otp', phone: clean });
   };
   return (
@@ -94,26 +98,35 @@ export function PhoneScreen() {
 }
 
 export function OtpScreen({ phone }: { phone: string }) {
-  const { push, pop } = useNav();
+  const { push, pop, reset } = useNav();
+  const { setUser, setAddress } = useApp();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const len = backend.otpLength;
   const go = async (c = code) => {
     setBusy(true);
-    const r = await verifyOtp(phone, c);
+    const r = await backend.verifyOtp(phone, c);
     setBusy(false);
-    if (!r.ok) return setErr('That code is not right. Try again.');
+    if (!r.ok) return setErr(r.error ?? 'That code is not right. Try again.');
+    // Returning customer: skip sign-up.
+    const s = await backend.restoreSession().catch(() => null);
+    if (s?.user && s.address) {
+      setUser(s.user);
+      setAddress(s.address);
+      return reset({ name: 'tabs', tab: 'home' });
+    }
     push({ name: 'profile', phone });
   };
   return (
     <>
       <Header onBack={pop} />
       <Wrap>
-        <Txt v="h1" style={{ marginBottom: 8 }}>Enter the 4-digit code</Txt>
-        <Txt color={colors.muted} style={{ marginBottom: 24 }}>Sent to {phone}. Demo code: {DEMO_OTP}</Txt>
+        <Txt v="h1" style={{ marginBottom: 8 }}>Enter the {len}-digit code</Txt>
+        <Txt color={colors.muted} style={{ marginBottom: 24 }}>Sent to {phone}.{backend.demoOtp ? ` Demo code: ${backend.demoOtp}` : ''}</Txt>
         <View>
-          <Row style={{ gap: 12 }}>
-            {[0, 1, 2, 3].map((i) => (
+          <Row style={{ gap: len > 4 ? 8 : 12 }}>
+            {Array.from({ length: len }, (_, i) => i).map((i) => (
               <View key={i} style={{ flex: 1, height: 64, borderRadius: radius.small, backgroundColor: colors.surface, borderWidth: 2, borderColor: code.length === i ? colors.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                 <Txt v="h1">{code[i] ?? ''}</Txt>
               </View>
@@ -122,20 +135,20 @@ export function OtpScreen({ phone }: { phone: string }) {
           <TextInput
             value={code}
             onChangeText={(v) => {
-              const c = v.replace(/\D/g, '').slice(0, 4);
+              const c = v.replace(/\D/g, '').slice(0, len);
               setCode(c);
               setErr('');
-              if (c.length === 4) go(c);
+              if (c.length === len) go(c);
             }}
             keyboardType="number-pad"
             autoFocus
-            maxLength={4}
+            maxLength={len}
             style={{ position: 'absolute', inset: 0, opacity: 0.02, color: 'transparent' } as any}
           />
         </View>
         {err ? <Txt v="small" color={colors.danger} style={{ marginTop: 10 }}>{err}</Txt> : null}
         <View style={{ flex: 1 }} />
-        <Button title="Verify" onPress={() => go()} loading={busy} disabled={code.length < 4} style={{ marginTop: 24 }} />
+        <Button title="Verify" onPress={() => go()} loading={busy} disabled={code.length < len} style={{ marginTop: 24 }} />
       </Wrap>
     </>
   );
@@ -175,6 +188,7 @@ export function AddressScreen({ onboarding }: { onboarding?: boolean }) {
     address ?? { label: 'Home', estate: ESTATES[0], street: '', houseNo: '', landmark: '', gateName: '', gateCode: '', gateNote: '' },
   );
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   const set = (k: keyof Address) => (v: string) => setA((x) => ({ ...x, [k]: v }));
   const valid = a.street.trim() && a.houseNo.trim();
   return (
@@ -209,14 +223,20 @@ export function AddressScreen({ onboarding }: { onboarding?: boolean }) {
           <Field label="Visitor / gate code (optional)" value={a.gateCode} onChangeText={set('gateCode')} placeholder="e.g. 4821" keyboardType="number-pad" style={{ backgroundColor: colors.bg }} />
           <Field label="Note for security / rider" value={a.gateNote} onChangeText={set('gateNote')} placeholder="e.g. Tell the guard you're going to 14B, Mrs Bello" multiline style={{ backgroundColor: colors.bg }} />
         </Card>
+        {err ? <Txt v="small" color={colors.danger} style={{ marginBottom: 10 }}>{err}</Txt> : null}
         <Button
           title={onboarding ? 'Save and start shopping' : 'Save address'}
           disabled={!valid}
           loading={busy}
           onPress={async () => {
             setBusy(true);
-            await saveProfile(user!, a);
-            setAddress(a);
+            setErr('');
+            try {
+              setAddress(await backend.saveProfile(user!, a));
+            } catch (e: any) {
+              setBusy(false);
+              return setErr(e?.message ?? 'Could not save. Check your connection and try again.');
+            }
             setBusy(false);
             if (onboarding) reset({ name: 'tabs', tab: 'home' });
             else pop();

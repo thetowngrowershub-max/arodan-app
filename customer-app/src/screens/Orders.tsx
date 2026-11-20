@@ -9,7 +9,7 @@ import { useNav } from '../nav';
 import { useApp } from '../store/AppContext';
 import { colors, radius } from '../theme';
 import { ORDER_STEPS } from '../api/types';
-import { cancelOrder } from '../api/mock';
+import { backend } from '../api';
 import { statusText } from './Shop';
 import { ErrandLine } from './Checkout';
 
@@ -41,7 +41,7 @@ export function OrdersTab() {
         return (
           <Card key={o.id} onPress={() => push({ name: 'tracking', id: o.id })} style={[{ gap: 6 }, live ? { backgroundColor: colors.tint } : {}]}>
             <Row style={{ justifyContent: 'space-between' }}>
-              <Txt v="label">{o.id} · {timeLabel(new Date(o.createdAt))}</Txt>
+              <Txt v="label">{o.code} · {timeLabel(new Date(o.createdAt))}</Txt>
               {live && <View style={{ backgroundColor: colors.accent, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 }}><Txt v="small" weight="semibold" color={colors.onAccent}>Live</Txt></View>}
             </Row>
             <Txt v="h3">{statusText[o.status]}</Txt>
@@ -85,7 +85,7 @@ export function TrackingScreen({ id }: { id: string }) {
   const gateVisible = live && idx >= 1;
   return (
     <View style={{ flex: 1 }}>
-      <Header title={`Order ${o.id}`} onBack={pop} />
+      <Header title={`Order ${o.code}`} onBack={pop} />
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
         {o.status !== 'cancelled' && <RouteMap progress={Math.max(0, idx - 1) / (ORDER_STEPS.length - 2)} />}
         <View style={{ gap: 2 }}>
@@ -169,7 +169,7 @@ export function TrackingScreen({ id }: { id: string }) {
           Paid by {o.payment === 'card' ? 'card' : o.payment === 'transfer' ? 'bank transfer' : 'pay on delivery'}
         </Txt>
         {o.status === 'placed' && (
-          <Button title="Cancel order" kind="ghost" onPress={async () => updateOrder(await cancelOrder(o))} />
+          <Button title="Cancel order" kind="ghost" onPress={async () => { try { updateOrder(await backend.cancelOrder(o)); } catch {} }} />
         )}
       </ScrollView>
     </View>
