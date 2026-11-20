@@ -1,18 +1,18 @@
 # Arodan API server
 
-Our own backend: a Node.js API in front of a PostgreSQL database. It handles SMS sign-in (via Termii), profiles and addresses, the catalogue, server-side pricing, orders and tracking. No third-party backend service is needed.
+Our own backend: a Node.js API in front of a PostgreSQL database. It handles SMS sign-in (via Message Central or Termii), profiles and addresses, the catalogue, server-side pricing, orders and tracking. No third-party backend service is needed.
 
 ```
 customer app  ──HTTPS──►  API server (this folder)  ──►  PostgreSQL (db/)
                                 │
-                                └──► Termii (SMS codes)
+                                └──► Message Central or Termii (sign-in codes)
 ```
 
 ## Endpoints
 
 | Method | Path | What it does |
 | --- | --- | --- |
-| POST | `/auth/otp` | Text a sign-in code to `{ phone }` (max 5 an hour per number) |
+| POST | `/auth/otp` | Send a sign-in code to `{ phone }` by Termii or Message Central (max 5 an hour per number) |
 | POST | `/auth/verify` | Check `{ phone, code }`, returns a sign-in token (5 tries per code) |
 | GET / PUT | `/me` | Profile; PUT sets `{ name }` |
 | PUT | `/me/address` | Save the delivery address and gate details |
@@ -42,13 +42,15 @@ Then in `customer-app/.env` set `EXPO_PUBLIC_API_URL=http://<your computer's Wi-
 
 ## Put it online
 
+**Free option for the pilot:** follow [`docs/oracle-cloud-setup.md`](../docs/oracle-cloud-setup.md) (Oracle Cloud Always Free, with HTTPS and backups).
+
 Any host that runs Docker or Node.js works. Two simple choices:
 
 **A. One small Linux server (about $6–12/month: DigitalOcean, Hetzner, Contabo)**
 1. Create an Ubuntu server and install Docker (`curl -fsSL https://get.docker.com | sh`).
 2. `git clone` this repo, create `.env` from `server/.env.example`, then `docker compose up -d --build` and run the seed once.
-3. Point a domain (e.g. `api.arodan.ng`) at the server and put HTTPS in front. The easiest way is [Caddy](https://caddyserver.com): `caddy reverse-proxy --from api.arodan.ng --to localhost:3000`.
-4. Back up the database daily: `docker compose exec db pg_dump -U arodan arodan > backup.sql` (or use your host's snapshot backups).
+3. Set `DOMAIN` in `.env` (e.g. `api.arodan.ng`, pointed at the server) and start with `docker compose --profile https up -d --build`: Caddy adds HTTPS automatically.
+4. Back up daily with `scripts/backup.sh` (see the Oracle guide for the cron line).
 
 **B. A managed platform (Render, Railway, Fly.io): no server to look after**
 1. Create a managed PostgreSQL database there and copy its connection string into `DATABASE_URL` (set `DATABASE_SSL=true` if they require SSL).
@@ -67,7 +69,7 @@ Connect with any Postgres tool (TablePlus, DBeaver, pgAdmin, or `psql`):
 ## Before real customers
 
 - Set `demo_mode = false` in `pricing_config`, and delete the two demo riders (ids starting `00000000-`).
-- Add `TERMII_API_KEY` and a registered `TERMII_SENDER_ID`; remove `TEST_OTP_PHONES`.
+- Set up an SMS provider (`SMS_PROVIDER=messagecentral` with its Customer ID and password, or Termii with `TERMII_API_KEY` and a registered sender ID); remove `TEST_OTP_PHONES`.
 - Set `CORS_ORIGIN` to your own website(s) if any.
 
 ## Tests

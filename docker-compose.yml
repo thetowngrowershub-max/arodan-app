@@ -2,6 +2,7 @@
 #   1. cp server/.env.example .env   and fill it in
 #   2. docker compose up -d --build
 #   3. docker compose exec api node scripts/seed.js   (first time only: starter catalogue)
+# On a public server, add HTTPS with:  docker compose --profile https up -d --build   (needs DOMAIN in .env)
 services:
   db:
     image: postgres:16-alpine
@@ -31,5 +32,21 @@ services:
       db:
         condition: service_healthy
 
+  https:
+    image: caddy:2-alpine
+    profiles: ["https"]
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - api
+
 volumes:
   db-data:
+  caddy-data:

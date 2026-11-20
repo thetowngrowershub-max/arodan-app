@@ -5,7 +5,7 @@ import { createHash, randomInt } from 'node:crypto';
 import { config } from './config.js';
 import { asUser, pool } from './db.js';
 import { signToken, verifyToken } from './token.js';
-import { sendSms } from './sms.js';
+import { messageCentralCheck, messageCentralEnabled, messageCentralSend, sendTermii } from './sms.js';
 import { getOrder, listOrders } from './orders.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,11 +79,18 @@ export async function buildApp(opts = {}) {
     if (rows[0].n >= config.otpMaxPerHour) throw new HttpError(429, 'Too many codes requested. Try again in an hour.');
 
     const test = config.testPhones[phone];
-    const code = test ?? String(randomInt(0, 10 ** config.otpLength)).padStart(config.otpLength, '0');
-    await pool.query(
-      `insert into auth.otp_codes (phone, code_hash, expires_at) values ($1, $2, now() + make_interval(mins => $3))`,
-      [phone, hashCode(phone, code), config.otpTtlMin]);
-    if (!test) await sendSms(phone, `Your Arodan code is ${code}. It expires in ${config.otpTtlMin} minutes. Do not share it.`, req.log);
+    if (!test && messageCentralEnabled()) {
+      const ref = await messageCentralSend(phone, req.log);
+      await pool.query(
+        `insert into auth.otp_codes (phone, provider, provider_ref, expires_at) values ($1, 'messagecentral', $2, now() + make_interval(mins => $3))`,
+        [phone, ref, config.otpTtlMin]);
+    } else {
+      const code = test ?? String(randomInt(0, 10 ** config.otpLength)).padStart(config.otpLength, '0');
+      await pool.query(
+        `insert into auth.otp_codes (phone, code_hash, expires_at) values ($1, $2, now() + make_interval(mins => $3))`,
+        [phone, hashCode(phone, code), config.otpTtlMin]);
+      if (!test) await sendTermii(phone, `Your Arodan code is ${code}. It expires in ${config.otpTtlMin} minutes. Do not share it.`, req.log);
+    }
     return { ok: true, otpLength: config.otpLength };
   });
 
@@ -95,14 +102,22 @@ export async function buildApp(opts = {}) {
     try {
       await client.query('begin');
       const { rows } = await client.query(
-        `select id, code_hash, attempts from auth.otp_codes
+        `select id, code_hash, attempts, provider, provider_ref from auth.otp_codes
          where phone = $1 and used_at is null and expires_at > now() order by created_at desc limit 1 for update`, [phone]);
       const otp = rows[0];
       if (!otp || otp.attempts >= 5) {
         await client.query('commit');
         throw new HttpError(400, 'That code has expired. Ask for a new one.');
       }
-      if (otp.code_hash !== hashCode(phone, code)) {
+      const result = otp.provider === 'messagecentral'
+        ? await messageCentralCheck(otp.provider_ref, code, req.log)
+        : otp.code_hash === hashCode(phone, code) ? 'ok' : 'wrong';
+      if (result === 'expired') {
+        await client.query('update auth.otp_codes set used_at = now() where id = $1', [otp.id]);
+        await client.query('commit');
+        throw new HttpError(400, 'That code has expired. Ask for a new one.');
+      }
+      if (result !== 'ok') {
         await client.query('update auth.otp_codes set attempts = attempts + 1 where id = $1', [otp.id]);
         await client.query('commit');
         throw new HttpError(400, 'That code is not right. Try again.');
