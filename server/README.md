@@ -24,6 +24,18 @@ customer app  ──HTTPS──►  API server (this folder)  ──►  Postgre
 | POST | `/orders/:id/status` | Riders/admins move an order forward (for the rider app) |
 | POST | `/orders/:id/demo-advance` | Testing aid while `demo_mode` is on |
 | GET | `/health` | Uptime check |
+| GET | `/merchant/areas` | Areas a merchant can be in (sets their delivery distance) |
+| GET / PUT | `/merchant/me` | The signed-in merchant's shop (null if none); PUT changes details or `{ isOpen }` |
+| POST | `/merchant/register` | Set up a shop (pending approval unless `demo_mode` is on) |
+| GET / POST | `/merchant/products` | The merchant's own listings / add one |
+| PUT | `/merchant/products/:id` | Change a listing (send only what changed, e.g. `{ stock: 12 }`) |
+| POST | `/merchant/images` | Upload a product photo `{ data: base64 }` (JPEG/PNG/WebP, max 2 MB); returns `{ url }` |
+| GET | `/images/:id` | Product photos |
+| GET | `/merchant/orders`, `/merchant/orders/:id` | The shop's part of each order (`?active=true` for ones to prepare) |
+| POST | `/merchant/orders/:id/accept`, `/ready`, `/decline` | Start packing, ready for pickup, or decline `{ reason }` (cancels the order) |
+| GET | `/merchant/sales?days=7` | Sales summary for 1 to 90 days |
+| GET | `/admin/merchants?status=pending` | Admins: merchants waiting for approval |
+| POST | `/admin/merchants/:id/status` | Admins: `{ status: 'live' }` to approve, `'suspended'` to pause |
 
 Security: each request runs inside the database as the signed-in user, so the row level security rules in `db/migrations/002_app.sql` decide what anyone can see or change. Customers only ever see their own orders and addresses.
 
@@ -63,7 +75,8 @@ If the database user can create roles (`CREATEROLE`), the database's own row lev
 
 Connect with any Postgres tool (TablePlus, DBeaver, pgAdmin, or `psql`):
 - **Prices:** edit `pricing_config.config` (same names as `customer-app/src/lib/pricing.ts`). Apps pick it up next time they open.
-- **Products:** `products` table; set `active = false` to hide one.
+- **Products:** merchants manage their own in the merchant app. Arodan's starter products (merchants `m1`–`m4`) are edited in the `products` table; set `active = false` to hide one.
+- **Approve a merchant:** `update merchants set status = 'live' where name = 'Bisi Provisions';` (or make yourself an admin with `update profiles set role = 'admin' where phone = '234…'` and use `/admin/merchants`).
 - **Move an order by hand** (until the rider app exists): `update orders set status = 'on_the_way' where code = 'AR100001';`
 
 ## Before real customers
