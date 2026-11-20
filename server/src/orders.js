@@ -8,13 +8,17 @@ const SQL = `
               from order_errands e where e.order_id = o.id), '[]') as errands,
     coalesce((select json_agg(json_build_object('status', ev.status, 'at', ev.at) order by ev.id)
               from order_events ev where ev.order_id = o.id), '[]') as events,
-    (select to_json(r) from riders r where r.id = o.rider_id) as rider
+    (select to_json(r) from riders r where r.id = o.rider_id) as rider,
+    -- Only the customer sees the hand-over code; the rider must ask for it at the door.
+    case when o.customer_id = auth.uid() then o.delivery_code end as customer_delivery_code
   from orders o
   where (o.customer_id = auth.uid() or o.rider_id = auth.uid())`;
 
-function toRider(r) {
+function toRider(r, live) {
   if (!r) return undefined;
   return {
+    // Live position while the order is on its way (rider app sends it every ~15 s).
+    location: live && r.lat != null && r.lng != null ? { lat: r.lat, lng: r.lng, heading: r.heading ?? null, at: new Date(r.location_at).getTime() } : undefined,
     name: r.display_name,
     phone: r.phone,
     vehicle: r.vehicle === 'bicycle' ? 'Bicycle' : 'Motorbike',
@@ -49,7 +53,8 @@ export function toOrder(o) {
     paymentStatus: o.payment_status,
     status: o.status,
     statusTimes,
-    rider: toRider(o.rider),
+    rider: toRider(o.rider, !['delivered', 'cancelled'].includes(o.status)),
+    deliveryCode: o.customer_delivery_code ?? undefined,
     etaMin: o.eta_min,
   };
 }

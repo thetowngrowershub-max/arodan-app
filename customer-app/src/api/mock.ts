@@ -52,6 +52,7 @@ export const mockBackend: Backend = {
       status: 'placed',
       statusTimes: { placed: Date.now() },
       etaMin,
+      deliveryCode: String(Math.floor(1000 + Math.random() * 9000)),
       rider: quote.vehicle === 'bicycle' ? riders[1] : riders[0],
     };
   },

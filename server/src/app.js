@@ -7,6 +7,7 @@ import { asUser, pool } from './db.js';
 import { signToken, verifyToken } from './token.js';
 import { messageCentralCheck, messageCentralEnabled, messageCentralSend, sendTermii } from './sms.js';
 import { getOrder, listOrders } from './orders.js';
+import { registerRiderRoutes } from './rider.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -255,6 +256,8 @@ export async function buildApp(opts = {}) {
       await db.query('select demo_advance_order($1)', [orderId(req)]);
       return getOrder(db, req.params.id);
     }));
+
+  registerRiderRoutes(app, { auth, HttpError });
 
   return app;
 }
