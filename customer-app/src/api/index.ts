@@ -1,9 +1,9 @@
 import { mockBackend } from './mock';
-import { supabaseBackend } from './supabase';
+import { serverBackend } from './server';
 import type { Backend } from './types';
 
 /**
- * Uses the real Supabase backend when EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set
- * (see customer-app/.env.example), otherwise the offline demo.
+ * Uses the Arodan API server when EXPO_PUBLIC_API_URL is set (see customer-app/.env.example),
+ * otherwise the offline demo.
  */
-export const backend: Backend = supabaseBackend ?? mockBackend;
+export const backend: Backend = serverBackend ?? mockBackend;

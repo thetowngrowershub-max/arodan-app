@@ -1,0 +1,23 @@
+{
+  "name": "arodan-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Arodan API server: SMS sign-in, catalogue, orders and tracking on PostgreSQL",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.4.3",
+    "@fastify/rate-limit": "^10.3.0",
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1"
+  }
+}

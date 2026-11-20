@@ -4,7 +4,7 @@ One app for shopping, errands and delivery in Magodo Phase 2, Lagos. Built with 
 
 It runs in two modes:
 - **Offline demo** (default): fake data, sign-in code 1234, nothing leaves the phone.
-- **Real backend**: put your Supabase details in `.env` (copy `.env.example`). See [`../supabase/README.md`](../supabase/README.md) to set up the database. Payments are still not charged in either mode.
+- **Real backend**: copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to your Arodan API server. See [`../server/README.md`](../server/README.md) to run the server and database. Payments are still not charged in either mode.
 
 ## Try it on your phone (about 10 minutes, first time)
 
@@ -50,12 +50,12 @@ To try it in a web browser instead: `npx expo start --web`.
 | `src/screens/` | All screens (onboarding, shop, checkout, errands, orders/tracking, tabs) |
 | `src/lib/pricing.ts` | Every fee and rate in one place |
 | `src/data/` | Mock catalogue, merchants and errand pickup spots |
-| `src/api/` | `mock.ts` (offline demo) and `supabase.ts` (real backend); `index.ts` picks one |
+| `src/api/` | `mock.ts` (offline demo) and `server.ts` (Arodan API server); `index.ts` picks one |
 | `src/theme.ts` | Option D colours and font (Sora, emerald #06805A, mango #FFB52E) |
 
 ## Next steps to launch
 
-1. ~~Real backend~~ done (Supabase). Connect a live SMS provider.
+1. ~~Real backend~~ done (own Node.js server + PostgreSQL). Add a Termii API key for live SMS.
 2. Payments (Paystack or Flutterwave), real maps and rider location.
 3. Rider app and Merchant app on the same backend.
 4. Builds for testers with EAS (`npx eas-cli build`), then Play Store / App Store submission.

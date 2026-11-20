@@ -67,7 +67,7 @@ export interface OrderDraft {
   payment: PaymentMethod;
 }
 
-/** Everything the app needs from a server. Implemented by mock.ts (offline demo) and supabase.ts (real backend). */
+/** Everything the app needs from a server. Implemented by mock.ts (offline demo) and server.ts (Arodan API server). */
 export interface Backend {
   mode: 'mock' | 'live';
   otpLength: number;

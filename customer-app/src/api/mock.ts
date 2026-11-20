@@ -1,6 +1,6 @@
 /**
  * Offline demo backend: no network, fake SMS code, fake riders.
- * Used when EXPO_PUBLIC_SUPABASE_URL is not set.
+ * Used when EXPO_PUBLIC_API_URL is not set.
  */
 import { shortId } from '../lib/format';
 import { priceOrder } from '../store/checkout';

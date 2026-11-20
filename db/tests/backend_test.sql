@@ -1,5 +1,5 @@
--- Run after supabase_stub.sql, the migration and seed.sql on a throwaway database:
---   psql -v ON_ERROR_STOP=1 -f tests/backend_test.sql
+-- Database checks. Run on a throwaway database after db/migrations/*.sql and db/seed.sql:
+--   psql -v ON_ERROR_STOP=1 -f db/tests/backend_test.sql
 -- Every check raises an exception if it fails.
 \set ON_ERROR_STOP 1
 insert into auth.users (id, phone) values ('11111111-1111-4111-8111-111111111111', '2348031234567'), ('22222222-2222-4222-8222-222222222222', '2348039999999');

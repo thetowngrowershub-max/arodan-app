@@ -1,5 +1,5 @@
--- Arodan backend: initial schema for the customer app (and the rider / merchant apps to come).
--- Run on a Supabase project: Dashboard > SQL editor, or `supabase db push`.
+-- Arodan backend: schema, security rules and server functions for the customer app
+-- (and the rider / merchant apps to come). Applied by `npm run migrate` in /server.
 
 -- ───────────────────────── Users ─────────────────────────
 create table public.profiles (
@@ -437,10 +437,3 @@ revoke all on function public.set_order_status(uuid, public.order_status) from p
 grant execute on function public.set_order_status(uuid, public.order_status) to authenticated;
 revoke all on function public.demo_advance_order(uuid) from public, anon;
 grant execute on function public.demo_advance_order(uuid) to authenticated;
-
--- Live tracking
-do $$ begin
-  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
-    alter publication supabase_realtime add table public.orders, public.order_events;
-  end if;
-end $$;
