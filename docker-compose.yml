@@ -1,7 +1,7 @@
 # Runs the Arodan database and API together on one server.
 #   1. cp server/.env.example .env   and fill it in
 #   2. docker compose up -d --build
-#   3. docker compose exec api node scripts/seed.js   (first time only: starter catalogue)
+#   (the starter catalogue loads automatically on first start)
 # On a public server, add HTTPS with:  docker compose --profile https up -d --build   (needs DOMAIN in .env)
 services:
   db:

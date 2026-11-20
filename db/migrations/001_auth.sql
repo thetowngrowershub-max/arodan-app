@@ -1,9 +1,11 @@
 -- Sign-in tables and database roles used by the Arodan API server.
 -- The API signs people in with SMS codes and, for each request, runs queries as the
 -- `authenticated` role with the user's id set, so the row level security rules in 002_app.sql apply.
+-- Some managed hosts don't let the database user create roles. Then these steps are skipped and the
+-- API adds the same per-user filters to its own queries instead (see server/src/db.js).
 
-do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
-do $$ begin create role authenticated nologin; exception when duplicate_object then null; end $$;
+do $$ begin create role anon nologin; exception when duplicate_object or insufficient_privilege then null; end $$;
+do $$ begin create role authenticated nologin; exception when duplicate_object or insufficient_privilege then null; end $$;
 -- The API's own database user must be able to switch into these roles.
 do $$ begin execute format('grant anon, authenticated to %I', current_user); exception when others then null; end $$;
 
@@ -33,7 +35,11 @@ create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
 $$;
 
-grant usage on schema public, auth to anon, authenticated;
-grant execute on function auth.uid() to anon, authenticated;
-alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
-alter default privileges in schema public grant usage, select on sequences to anon, authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') and exists (select 1 from pg_roles where rolname = 'anon') then
+    grant usage on schema public, auth to anon, authenticated;
+    grant execute on function auth.uid() to anon, authenticated;
+    alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated;
+    alter default privileges in schema public grant usage, select on sequences to anon, authenticated;
+  end if;
+end $$;

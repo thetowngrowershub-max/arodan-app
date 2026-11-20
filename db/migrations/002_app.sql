@@ -406,8 +406,14 @@ alter table public.order_events enable row level security;
 create policy "own profile" on public.profiles for select using (id = auth.uid());
 create policy "update own profile" on public.profiles for update using (id = auth.uid()) with check (id = auth.uid());
 -- Users may change only their name (not their role or phone).
-revoke update on public.profiles from anon, authenticated;
-grant update (full_name) on public.profiles to authenticated;
+-- Role grants (skipped on hosts that don't allow creating the anon/authenticated roles;
+-- the API then filters by user itself, see server/src/db.js).
+do $grants$ begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute $q$revoke update on public.profiles from anon, authenticated$q$;
+    execute $q$grant update (full_name) on public.profiles to authenticated$q$;
+  end if;
+end $grants$;
 
 create policy "own addresses" on public.addresses for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
@@ -428,12 +434,18 @@ create policy "rider visible to their customers" on public.riders for select usi
 );
 
 -- Orders are created and changed only through the functions above.
-revoke insert, update, delete on public.orders, public.order_items, public.order_errands, public.order_events from anon, authenticated;
-revoke all on function public.price_order(jsonb, jsonb, timestamptz) from public;
-grant execute on function public.price_order(jsonb, jsonb, timestamptz) to anon, authenticated;
-revoke all on function public.place_order(uuid, jsonb, jsonb, public.payment_method) from public, anon;
-grant execute on function public.place_order(uuid, jsonb, jsonb, public.payment_method) to authenticated;
-revoke all on function public.set_order_status(uuid, public.order_status) from public, anon;
-grant execute on function public.set_order_status(uuid, public.order_status) to authenticated;
-revoke all on function public.demo_advance_order(uuid) from public, anon;
-grant execute on function public.demo_advance_order(uuid) to authenticated;
+-- Role grants (skipped on hosts that don't allow creating the anon/authenticated roles;
+-- the API then filters by user itself, see server/src/db.js).
+do $grants$ begin
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then
+    execute $q$revoke insert, update, delete on public.orders, public.order_items, public.order_errands, public.order_events from anon, authenticated$q$;
+    execute $q$revoke all on function public.price_order(jsonb, jsonb, timestamptz) from public$q$;
+    execute $q$grant execute on function public.price_order(jsonb, jsonb, timestamptz) to anon, authenticated$q$;
+    execute $q$revoke all on function public.place_order(uuid, jsonb, jsonb, public.payment_method) from public, anon$q$;
+    execute $q$grant execute on function public.place_order(uuid, jsonb, jsonb, public.payment_method) to authenticated$q$;
+    execute $q$revoke all on function public.set_order_status(uuid, public.order_status) from public, anon$q$;
+    execute $q$grant execute on function public.set_order_status(uuid, public.order_status) to authenticated$q$;
+    execute $q$revoke all on function public.demo_advance_order(uuid) from public, anon$q$;
+    execute $q$grant execute on function public.demo_advance_order(uuid) to authenticated$q$;
+  end if;
+end $grants$;

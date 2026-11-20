@@ -140,7 +140,7 @@ export async function buildApp(opts = {}) {
   app.get('/me', { preHandler: auth }, async (req) =>
     asUser(req.uid, async (db) => {
       const p = await db.query('select phone, full_name, role from profiles where id = auth.uid()');
-      const a = await db.query('select * from addresses order by is_default desc, created_at desc limit 1');
+      const a = await db.query('select * from addresses where user_id = auth.uid() order by is_default desc, created_at desc limit 1');
       const prof = p.rows[0];
       return {
         user: prof ? { phone: prof.phone, name: prof.full_name ?? '', role: prof.role } : null,
@@ -163,7 +163,7 @@ export async function buildApp(opts = {}) {
     return asUser(req.uid, async (db) => {
       const cols = 'label, estate, street, house_no, landmark, gate_name, gate_code, gate_note';
       const r = b.id && UUID.test(b.id)
-        ? await db.query(`update addresses set (${cols}) = ($1,$2,$3,$4,$5,$6,$7,$8) where id = $9 returning *`, [...v, b.id])
+        ? await db.query(`update addresses set (${cols}) = ($1,$2,$3,$4,$5,$6,$7,$8) where id = $9 and user_id = auth.uid() returning *`, [...v, b.id])
         : { rows: [] };
       if (r.rows[0]) return toAddress(r.rows[0]);
       const ins = await db.query(
@@ -177,10 +177,10 @@ export async function buildApp(opts = {}) {
     asUser(null, async (db) => {
       const [c, m, p, s, cfg] = await Promise.all([
         db.query('select id, name, emoji from categories order by sort'),
-        db.query('select id, name, area, distance_km as "distanceKm", duration_min as "durationMin" from merchants'),
+        db.query('select id, name, area, distance_km as "distanceKm", duration_min as "durationMin" from merchants where active'),
         db.query(`select id, name, category_id as category, price, unit, weight_kg as "weightKg", longest_side_cm as "longestSideCm",
                          emoji, image_url as "imageUrl", merchant_id as "merchantId", rating, popular, description
-                  from products order by popular desc, name`),
+                  from products where active order by popular desc, name`),
         db.query('select id, name, distance_km as "distanceKm", duration_min as "durationMin" from errand_spots order by sort'),
         db.query('select config, demo_mode as "demoMode" from pricing_config where id = 1'),
       ]);

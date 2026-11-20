@@ -8,5 +8,5 @@ COPY server/scripts ./scripts
 COPY db /app/db
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
-# Bring the database up to date, then start the API.
-CMD ["sh", "-c", "node scripts/migrate.js && node src/index.js"]
+# Bring the database up to date, load the starter catalogue the first time only, then start the API.
+CMD ["sh", "-c", "node scripts/migrate.js && node scripts/seed.js --if-empty && node src/index.js"]

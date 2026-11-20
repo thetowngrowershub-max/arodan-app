@@ -9,7 +9,8 @@ const SQL = `
     coalesce((select json_agg(json_build_object('status', ev.status, 'at', ev.at) order by ev.id)
               from order_events ev where ev.order_id = o.id), '[]') as events,
     (select to_json(r) from riders r where r.id = o.rider_id) as rider
-  from orders o`;
+  from orders o
+  where (o.customer_id = auth.uid() or o.rider_id = auth.uid())`;
 
 function toRider(r) {
   if (!r) return undefined;
@@ -55,12 +56,12 @@ export function toOrder(o) {
 
 /** Orders visible to the current database user (row level security filters the rest). */
 export async function listOrders(client, { limit = 50, activeOnly = false } = {}) {
-  const where = activeOnly ? "where o.status not in ('delivered', 'cancelled')" : '';
+  const where = activeOnly ? "and o.status not in ('delivered', 'cancelled')" : '';
   const { rows } = await client.query(`${SQL} ${where} order by o.created_at desc limit $1`, [limit]);
   return rows.map(toOrder);
 }
 
 export async function getOrder(client, id) {
-  const { rows } = await client.query(`${SQL} where o.id = $1`, [id]);
+  const { rows } = await client.query(`${SQL} and o.id = $1`, [id]);
   return rows[0] ? toOrder(rows[0]) : null;
 }

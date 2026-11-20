@@ -34,7 +34,6 @@ Needs Node.js 20+ and PostgreSQL 15+ (or Docker).
 ```
 cp server/.env.example .env      # fill in POSTGRES_PASSWORD and JWT_SECRET
 docker compose up -d --build
-docker compose exec api node scripts/seed.js
 curl http://localhost:3000/health
 ```
 
@@ -42,22 +41,23 @@ Then in `customer-app/.env` set `EXPO_PUBLIC_API_URL=http://<your computer's Wi-
 
 ## Put it online
 
-**Free option for the pilot:** follow [`docs/oracle-cloud-setup.md`](../docs/oracle-cloud-setup.md) (Oracle Cloud Always Free, with HTTPS and backups).
+**Recommended:** Render, using [`render.yaml`](../render.yaml): follow [`docs/render-setup.md`](../docs/render-setup.md) (about $13/month, nothing to maintain).
+**Free alternative:** [`docs/oracle-cloud-setup.md`](../docs/oracle-cloud-setup.md) (Oracle Cloud Always Free, you look after the server).
 
 Any host that runs Docker or Node.js works. Two simple choices:
 
 **A. One small Linux server (about $6–12/month: DigitalOcean, Hetzner, Contabo)**
 1. Create an Ubuntu server and install Docker (`curl -fsSL https://get.docker.com | sh`).
-2. `git clone` this repo, create `.env` from `server/.env.example`, then `docker compose up -d --build` and run the seed once.
+2. `git clone` this repo, create `.env` from `server/.env.example`, then `docker compose up -d --build`.
 3. Set `DOMAIN` in `.env` (e.g. `api.arodan.ng`, pointed at the server) and start with `docker compose --profile https up -d --build`: Caddy adds HTTPS automatically.
 4. Back up daily with `scripts/backup.sh` (see the Oracle guide for the cron line).
 
 **B. A managed platform (Render, Railway, Fly.io): no server to look after**
 1. Create a managed PostgreSQL database there and copy its connection string into `DATABASE_URL` (set `DATABASE_SSL=true` if they require SSL).
 2. Create a web service from this repo using `server/Dockerfile` (build context = repo root), and add the other variables from `.env.example`.
-3. Run `node scripts/seed.js` once from the service's shell.
+3. On first start the server loads the starter catalogue itself (`seed.js --if-empty`).
 
-The database user needs permission to create roles (`CREATEROLE`), which the default admin user has on all of these.
+If the database user can create roles (`CREATEROLE`), the database's own row level security also enforces privacy; if not, the setup skips that and the API's own per-user filters do the job.
 
 ## Changing prices, products or orders
 

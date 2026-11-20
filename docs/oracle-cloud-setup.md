@@ -93,7 +93,7 @@ Save with **Ctrl+O**, **Enter**, then exit with **Ctrl+X**.
 
 ```
 docker compose --profile https up -d --build
-docker compose exec api node scripts/seed.js
+
 ```
 
 The first start takes a few minutes. Then check it works (use your DOMAIN):
@@ -152,4 +152,4 @@ Backups go to `~/backups` on the server (last 14 days kept). To also keep copies
 ## When it's time to pay
 
 Moving to a paid host later only means running the same steps on the new server and restoring the latest backup:
-`gunzip -c arodan-YYYY-MM-DD.sql.gz | docker compose exec -T db psql -U arodan arodan` (on the new server, before the seed step).
+`gunzip -c arodan-YYYY-MM-DD.sql.gz | docker compose exec -T db psql -U arodan arodan` (on the new server, right after the first start).
