@@ -21,8 +21,24 @@ customer app  ──HTTPS──►  API server (this folder)  ──►  Postgre
 | POST | `/orders` | Place an order (priced on the server) |
 | GET | `/orders`, `/orders/:id` | Your orders (`?active=true` for ones in progress) |
 | POST | `/orders/:id/cancel` | Cancel before a rider is assigned |
-| POST | `/orders/:id/status` | Riders/admins move an order forward (for the rider app) |
-| POST | `/orders/:id/demo-advance` | Testing aid while `demo_mode` is on |
+| POST | `/orders/:id/status` | Admins move an order forward (riders use `/rider/jobs/:id/status`) |
+| POST | `/orders/:id/demo-advance` | Testing aid while `demo_mode` is on (holds off while a real rider is online) |
+
+Rider app (signed in as a rider; see `db/migrations/005_riders.sql`):
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/rider/me` | Rider profile, vetting checks and the job in progress |
+| POST | `/rider/online` | `{ online, lat?, lng? }`. Only fully vetted riders can go online |
+| POST | `/rider/location` | `{ lat, lng, heading?, speed? }`, sent every ~15 s. Customers see it on live orders |
+| GET | `/rider/jobs` | Jobs on offer (online, free, right vehicle, not declined). Exact address and customer hidden until accepted |
+| GET | `/rider/job` | The job in progress, with full address, gate pass and customer phone |
+| POST | `/rider/jobs/:id/accept` | Take a job (first rider wins; one job at a time) |
+| POST | `/rider/jobs/:id/decline` | Don't offer this job to me again |
+| POST | `/rider/jobs/:id/release` | Hand a job back before pickup |
+| POST | `/rider/jobs/:id/status` | `picked_up`, `on_the_way` or `at_gate` |
+| POST | `/rider/jobs/:id/deliver` | Proof of delivery: `{ method: 'code', code }` (customer's 4-digit code) or `{ method: 'photo', photo: <base64 JPEG> }`; pay-on-delivery also needs `cashCollected` |
+| GET | `/rider/earnings` | Today, last 7 days, all time, and recent drops |
 | GET | `/health` | Uptime check |
 | GET | `/merchant/areas` | Areas a merchant can be in (sets their delivery distance) |
 | GET / PUT | `/merchant/me` | The signed-in merchant's shop (null if none); PUT changes details or `{ isOpen }` |
@@ -77,7 +93,16 @@ Connect with any Postgres tool (TablePlus, DBeaver, pgAdmin, or `psql`):
 - **Prices:** edit `pricing_config.config` (same names as `customer-app/src/lib/pricing.ts`). Apps pick it up next time they open.
 - **Products:** merchants manage their own in the merchant app. Arodan's starter products (merchants `m1`–`m4`) are edited in the `products` table; set `active = false` to hide one.
 - **Approve a merchant:** `update merchants set status = 'live' where name = 'Bisi Provisions';` (or make yourself an admin with `update profiles set role = 'admin' where phone = '234…'` and use `/admin/merchants`).
-- **Move an order by hand** (until the rider app exists): `update orders set status = 'on_the_way' where code = 'AR100001';`
+- **Move an order by hand:** `update orders set status = 'on_the_way' where code = 'AR100001';`
+- **Add a rider** (after their NIN, guarantor and address checks). They sign in to the rider app with this phone number:
+  ```sql
+  insert into auth.users (phone) values ('2348031112222');
+  update profiles set role = 'rider', full_name = 'Musa Ibrahim' where phone = '2348031112222';
+  insert into riders (id, display_name, phone, vehicle, plate, nin_verified, guarantor_confirmed, address_visited)
+  select id, 'Musa Ibrahim', '0803 111 2222', 'motorbike', 'LSR 123 AB', true, true, true from profiles where phone = '2348031112222';
+  ```
+  Pause a rider with `update riders set active = false where phone = '0803 111 2222';`
+- **Rider pay:** `pricing_config.config.riderPayout` (`deliveryShare` 0.8, `errandShare` 0.8, `minPerDrop` 800). What each rider earned is in `rider_earnings`; delivery photos and codes are in `delivery_proofs`.
 
 ## Before real customers
 

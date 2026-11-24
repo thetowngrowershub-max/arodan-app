@@ -9,6 +9,7 @@ import { messageCentralCheck, messageCentralEnabled, messageCentralSend, sendTer
 import { getOrder, listOrders } from './orders.js';
 import { HttpError, str, UUID } from './http.js';
 import { merchantRoutes } from './merchant.js';
+import { registerRiderRoutes } from './rider.js';
 
 
 /** "0803 123 4567", "+234 803…", "803…" → "2348031234567". Null if not a Nigerian mobile number. */
@@ -253,6 +254,7 @@ export async function buildApp(opts = {}) {
     }));
 
   await merchantRoutes(app, { auth });
+  registerRiderRoutes(app, { auth, HttpError });
 
   return app;
 }
