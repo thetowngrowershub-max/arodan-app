@@ -31,6 +31,12 @@
           "photosPermission": "Arodan Merchant uses your photos to show your products to customers.",
           "cameraPermission": "Arodan Merchant uses the camera to take product photos."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#06805A"
+        }
       ]
     ],
     "splash": {

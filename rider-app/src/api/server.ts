@@ -3,6 +3,8 @@
  * Used when EXPO_PUBLIC_API_URL is set.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { getPushToken, PUSH_APP } from '../lib/push';
 import { NotRiderError } from './types';
 import type { Earnings, Job, RiderBackend, RiderProfile } from './types';
 
@@ -37,6 +39,20 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   return data as T;
 }
 
+// ── Push notifications: this phone's token is sent to the server after sign-in, removed on sign-out ──
+let pushToken: string | null = null;
+async function registerPush() {
+  try {
+    pushToken = await getPushToken();
+    if (pushToken && token) await api('POST', '/push/register', { token: pushToken, app: PUSH_APP, platform: Platform.OS });
+  } catch {
+    // Not fatal: the app still refreshes on a timer.
+  }
+}
+async function unregisterPush() {
+  if (pushToken && token) await api('POST', '/push/unregister', { token: pushToken }).catch(() => {});
+}
+
 function make(): RiderBackend {
   return {
     mode: 'live',
@@ -59,6 +75,7 @@ function make(): RiderBackend {
         const r = await api<{ token: string }>('POST', '/auth/verify', { phone, code });
         token = r.token;
         await AsyncStorage.setItem(TOKEN_KEY, r.token);
+        void registerPush();
         return { ok: true };
       } catch (e: any) {
         return { ok: false, error: e.message };
@@ -69,7 +86,9 @@ function make(): RiderBackend {
       token = token ?? (await AsyncStorage.getItem(TOKEN_KEY));
       if (!token) return null;
       try {
-        return await api<{ rider: RiderProfile; activeJob: Job | null }>('GET', '/rider/me');
+        const s = await api<{ rider: RiderProfile; activeJob: Job | null }>('GET', '/rider/me');
+        void registerPush();
+        return s;
       } catch (e: any) {
         if (e.status === 401) {
           token = null;
@@ -105,6 +124,7 @@ function make(): RiderBackend {
     earnings: () => api<Earnings>('GET', '/rider/earnings'),
 
     async signOut() {
+      await unregisterPush();
       token = null;
       await AsyncStorage.removeItem(TOKEN_KEY);
     },

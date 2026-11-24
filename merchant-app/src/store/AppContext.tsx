@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Vibration } from 'react-native';
 import { backend } from '../api';
 import type { Area, Category, Listing, ListingInput, Merchant, MerchantOrder, OrderAction, Owner } from '../api/types';
+import { onNotification } from '../lib/push';
 
 const POLL_MS = 8000;
 
@@ -56,7 +57,14 @@ export function AppProvider({ initial, categories, areas, children }: { initial:
     refreshOrders();
     refreshListings().catch(() => {});
     const t = setInterval(refreshOrders, POLL_MS);
-    return () => clearInterval(t);
+    // New order / rider coming / cancelled: refresh now rather than at the next poll.
+    const off = onNotification((data) => {
+      if (data.type === 'order') refreshOrders();
+    });
+    return () => {
+      clearInterval(t);
+      off();
+    };
   }, [live, refreshOrders, refreshListings]);
 
   const saveListing = useCallback(async (id: string | undefined, input: Partial<ListingInput>) => {

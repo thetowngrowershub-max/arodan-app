@@ -37,6 +37,12 @@
           "cameraPermission": "Arodan uses the camera to photograph packages at drop-off as proof of delivery.",
           "photosPermission": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#06805A"
+        }
       ]
     ],
     "splash": {

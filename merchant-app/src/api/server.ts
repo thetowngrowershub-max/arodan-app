@@ -2,6 +2,8 @@
  * Real backend: the Arodan API server in /server. Used when EXPO_PUBLIC_API_URL is set.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { getPushToken, PUSH_APP } from '../lib/push';
 import type { Backend, Category, Area, Merchant, Listing, MerchantOrder, Sales } from './types';
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -35,6 +37,20 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   return data as T;
 }
 
+// ── Push notifications: this phone's token is sent to the server after sign-in, removed on sign-out ──
+let pushToken: string | null = null;
+async function registerPush() {
+  try {
+    pushToken = await getPushToken();
+    if (pushToken && token) await api('POST', '/push/register', { token: pushToken, app: PUSH_APP, platform: Platform.OS });
+  } catch {
+    // Not fatal: the app still refreshes on a timer.
+  }
+}
+async function unregisterPush() {
+  if (pushToken && token) await api('POST', '/push/unregister', { token: pushToken }).catch(() => {});
+}
+
 function make(): Backend {
   return {
     mode: 'live',
@@ -55,6 +71,7 @@ function make(): Backend {
         const r = await api<{ token: string }>('POST', '/auth/verify', { phone, code });
         token = r.token;
         await AsyncStorage.setItem(TOKEN_KEY, r.token);
+        void registerPush();
         return { ok: true };
       } catch (e: any) {
         return { ok: false, error: e.message };
@@ -64,7 +81,9 @@ function make(): Backend {
       token = token ?? (await AsyncStorage.getItem(TOKEN_KEY));
       if (!token) return null;
       try {
-        return await api('GET', '/merchant/me');
+        const m = await api<any>('GET', '/merchant/me');
+        void registerPush();
+        return m;
       } catch (e: any) {
         if (e.status === 401) {
           token = null;
@@ -91,6 +110,7 @@ function make(): Backend {
     orderAction: (id, action, reason) => api<MerchantOrder>('POST', `/merchant/orders/${id}/${action}`, { reason }),
     sales: (days) => api<Sales>('GET', `/merchant/sales?days=${days}`),
     async signOut() {
+      await unregisterPush();
       token = null;
       await AsyncStorage.removeItem(TOKEN_KEY);
     },

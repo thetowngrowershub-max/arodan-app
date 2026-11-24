@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { backend } from '../api';
 import type { Job, Position, RiderProfile } from '../api/types';
 import { currentPosition, ensureLocationPermission, watchPosition } from '../lib/location';
+import { onNotification } from '../lib/push';
 
 const OFFER_POLL_MS = 5000;
 const JOB_POLL_MS = 15000;
@@ -84,6 +85,21 @@ export function RiderProvider({ initialRider, initialJob, children }: { initialR
     const t = setInterval(refreshOffers, OFFER_POLL_MS);
     return () => clearInterval(t);
   }, [online, activeJob, foreground, refreshOffers]);
+
+  // A push notification (new job, job cancelled, order ready) refreshes straight away instead of waiting for the timer.
+  useEffect(
+    () =>
+      onNotification(async (data) => {
+        if (data.type !== 'job' || backend.mode === 'mock') return;
+        refreshOffers();
+        if (activeJob) {
+          try {
+            setActiveJob(await backend.currentJob());
+          } catch {}
+        }
+      }),
+    [refreshOffers, activeJob?.id],
+  );
 
   // Keep the job in step with the server (e.g. ops cancelled it).
   useEffect(() => {

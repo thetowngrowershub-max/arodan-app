@@ -3,6 +3,8 @@
  * Used when EXPO_PUBLIC_API_URL is set.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import { getPushToken, PUSH_APP } from '../lib/push';
 import { categories, merchants, products } from '../data/catalog';
 import { spots } from '../data/places';
 import { PRICING } from '../lib/pricing';
@@ -46,6 +48,20 @@ function refill<T>(arr: T[], items: T[]) {
   arr.splice(0, arr.length, ...items);
 }
 
+// ── Push notifications: this phone's token is sent to the server after sign-in, removed on sign-out ──
+let pushToken: string | null = null;
+async function registerPush() {
+  try {
+    pushToken = await getPushToken();
+    if (pushToken && token) await api('POST', '/push/register', { token: pushToken, app: PUSH_APP, platform: Platform.OS });
+  } catch {
+    // Not fatal: the app still refreshes on a timer.
+  }
+}
+async function unregisterPush() {
+  if (pushToken && token) await api('POST', '/push/unregister', { token: pushToken }).catch(() => {});
+}
+
 function make(): Backend {
   return {
     mode: 'live',
@@ -68,6 +84,7 @@ function make(): Backend {
         const r = await api<{ token: string }>('POST', '/auth/verify', { phone, code });
         token = r.token;
         await AsyncStorage.setItem(TOKEN_KEY, r.token);
+        void registerPush();
         return { ok: true };
       } catch (e: any) {
         return { ok: false, error: e.message };
@@ -80,6 +97,7 @@ function make(): Backend {
       try {
         const me = await api<{ user: { phone: string; name: string } | null; address: any }>('GET', '/me');
         if (!me.user?.name) return null; // signed in but never finished sign-up
+        void registerPush();
         return { user: { phone: me.user.phone, name: me.user.name }, address: me.address };
       } catch (e: any) {
         if (e.status === 401) {
@@ -135,6 +153,7 @@ function make(): Backend {
     },
 
     async signOut() {
+      await unregisterPush();
       token = null;
       await AsyncStorage.removeItem(TOKEN_KEY);
     },

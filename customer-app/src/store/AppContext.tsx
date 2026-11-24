@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Address, CartLine, Errand, Order, User } from '../api/types';
 import { backend } from '../api';
+import { onNotification } from '../lib/push';
 
 interface AppState {
   user: User | null;
@@ -59,7 +60,15 @@ export function AppProvider({ children, initialUser = null, initialAddress = nul
   useEffect(() => {
     if (!signedIn) return;
     backend.listOrders().then(setOrders).catch(() => {});
-    return backend.watchOrders(updateOrder);
+    const unwatch = backend.watchOrders(updateOrder);
+    // Order status pushes: reload now rather than at the next poll.
+    const off = onNotification((data) => {
+      if (data.type === 'order') backend.listOrders().then(setOrders).catch(() => {});
+    });
+    return () => {
+      unwatch();
+      off();
+    };
   }, [signedIn, updateOrder]);
 
   // Demo tracking: move active orders one step at a time. On the real backend this only works while
