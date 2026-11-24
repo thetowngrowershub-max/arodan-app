@@ -87,6 +87,47 @@ export interface Earnings {
   recent: { orderId: string; code: string; at: string; amount: number; delivery: number; errand: number; topUp: number; estate: string }[];
 }
 
+export interface Bank { code: string; name: string }
+
+export interface BankAccount {
+  bankCode: string;
+  bankName: string;
+  accountNumber: string; // masked, e.g. ******6789
+  accountName: string;
+  /** A changed account can receive payouts from this time (24 hours after the change). */
+  payoutsFrom: string;
+}
+
+export interface PayoutItem {
+  id: string;
+  amount: number;
+  status: 'processing' | 'paid' | 'failed';
+  trigger: 'rider' | 'auto' | 'admin';
+  bankName: string;
+  accountNumber: string;
+  failureReason: string | null;
+  createdAt: string;
+  paidAt: string | null;
+}
+
+export interface Wallet {
+  balance: {
+    earned: number; // drop earnings not yet paid out
+    errandSpend: number; // errand purchases the rider paid for
+    cashCollected: number; // pay-on-delivery cash the rider is holding
+    adjustments: number; // added or taken off by Arodan (e.g. cash handed in, bonus)
+    drops: number;
+    available: number;
+  };
+  minWithdrawal: number;
+  /** Lagos hour of the nightly automatic payout, or null if off. */
+  autoPayoutHour: number | null;
+  bankAccount: BankAccount | null;
+  payouts: PayoutItem[];
+  /** False until Arodan has switched on bank payouts on the server. */
+  payoutsEnabled: boolean;
+}
+
 export type Proof =
   | { method: 'code'; code: string }
   | { method: 'photo'; photo: string /* base64 JPEG */; note?: string };
@@ -112,6 +153,13 @@ export interface RiderBackend {
   advance(job: Job, status: 'picked_up' | 'on_the_way' | 'at_gate'): Promise<Job>;
   deliver(job: Job, proof: Proof, extra: { cashCollected?: number; pos?: Position | null }): Promise<{ earned: number; job: Job }>;
   earnings(): Promise<Earnings>;
+  wallet(): Promise<Wallet>;
+  banks(): Promise<Bank[]>;
+  /** The account holder's name, for the rider to confirm before saving. */
+  checkBankAccount(bankCode: string, accountNumber: string): Promise<{ bankName: string; accountName: string }>;
+  saveBankAccount(bankCode: string, accountNumber: string): Promise<Wallet>;
+  /** Withdraw the whole available balance. */
+  withdraw(): Promise<{ payout: { id: string; amount: number; status: PayoutItem['status'] }; wallet: Wallet }>;
   signOut(): Promise<void>;
 }
 

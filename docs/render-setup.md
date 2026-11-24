@@ -58,6 +58,10 @@ Restart `npx expo start`, then sign in with a tester number and its code. Orders
 
 To use Termii instead: set `SMS_PROVIDER` to `termii` and fill in `TERMII_API_KEY` (and `TERMII_SENDER_ID` once Termii approves your sender name).
 
+## 6. Push notifications and rider payouts (when ready)
+
+See [push-and-payouts-setup.md](push-and-payouts-setup.md): an Expo account for push notifications, and a Paystack business account (`PAYSTACK_SECRET_KEY`) for paying riders.
+
 ## Everyday tasks
 
 | Task | Where |

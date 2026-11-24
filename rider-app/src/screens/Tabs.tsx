@@ -10,6 +10,7 @@ import type { Earnings } from '../api/types';
 import { naira } from '../lib/format';
 import { call } from '../lib/maps';
 import { JobsTab } from './Jobs';
+import { WalletCard } from './Wallet';
 
 const SUPPORT_PHONE = '0800 000 0000'; // TODO: Arodan rider support line
 
@@ -43,6 +44,7 @@ function EarningsTab() {
   const [e, setE] = useState<Earnings | null>(null);
   const [err, setErr] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [pulls, setPulls] = useState(0);
   const load = useCallback(async () => {
     try {
       setE(await backend.earnings());
@@ -58,14 +60,15 @@ function EarningsTab() {
   return (
     <ScrollView
       contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 14 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); setPulls((n) => n + 1); await load(); setRefreshing(false); }} />}
     >
       <Txt v="h1">Earnings</Txt>
+      <WalletCard refreshKey={`${rider?.trips}:${pulls}`} />
       {!e ? (
         err ? <Txt color={colors.danger}>{err}</Txt> : <ActivityIndicator color={colors.primary} />
       ) : (
         <>
-          <Card tint style={{ gap: 4 }}>
+          <Card style={{ gap: 4 }}>
             <Txt v="label" color={colors.primary}>Today</Txt>
             <Txt v="h1" style={{ fontSize: 36, lineHeight: 42 }}>{naira(e.today.amount)}</Txt>
             <Txt v="small" color={colors.ink}>{e.today.trips} {e.today.trips === 1 ? 'drop' : 'drops'}</Txt>
@@ -105,7 +108,7 @@ function EarningsTab() {
               ))}
             </Card>
           )}
-          <Txt v="small" style={{ textAlign: 'center' }}>You keep 80% of the delivery fee and errand fee, at least ₦800 a drop. Payouts to your bank are handled by Arodan.</Txt>
+          <Txt v="small" style={{ textAlign: 'center' }}>You keep 80% of the delivery fee and errand fee, at least ₦800 a drop. Money you spend on errands is paid back with your earnings; pay-on-delivery cash you collect is taken off.</Txt>
         </>
       )}
     </ScrollView>

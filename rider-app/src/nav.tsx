@@ -8,7 +8,8 @@ export type Route =
   | { name: 'notRider'; message: string }
   | { name: 'tabs'; tab: Tab }
   | { name: 'job' }
-  | { name: 'deliver' };
+  | { name: 'deliver' }
+  | { name: 'bank' };
 
 interface Nav {
   route: Route;

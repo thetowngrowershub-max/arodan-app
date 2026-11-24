@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { getPushToken, PUSH_APP } from '../lib/push';
 import { NotRiderError } from './types';
-import type { Earnings, Job, RiderBackend, RiderProfile } from './types';
+import type { Bank, Earnings, Job, RiderBackend, RiderProfile, Wallet } from './types';
 
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 const TOKEN_KEY = 'arodan.rider.token';
@@ -122,6 +122,12 @@ function make(): RiderBackend {
         ...proof, cashCollected: extra.cashCollected, lat: extra.pos?.lat, lng: extra.pos?.lng,
       }),
     earnings: () => api<Earnings>('GET', '/rider/earnings'),
+    wallet: () => api<Wallet>('GET', '/rider/wallet'),
+    banks: () => api<Bank[]>('GET', '/rider/banks'),
+    checkBankAccount: (bankCode, accountNumber) =>
+      api<{ bankName: string; accountName: string }>('POST', '/rider/bank-account/check', { bankCode, accountNumber }),
+    saveBankAccount: (bankCode, accountNumber) => api<Wallet>('PUT', '/rider/bank-account', { bankCode, accountNumber }),
+    withdraw: () => api('POST', '/rider/payouts', {}),
 
     async signOut() {
       await unregisterPush();

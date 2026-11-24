@@ -2,7 +2,7 @@
  * Offline demo backend: no network, fake SMS code, sample jobs around Magodo Phase 2.
  * Used when EXPO_PUBLIC_API_URL is not set. Delivery code for every demo job: 2580.
  */
-import type { Earnings, Job, RiderBackend, RiderProfile } from './types';
+import type { Bank, Earnings, Job, PayoutItem, RiderBackend, RiderProfile, Wallet } from './types';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const DEMO_OTP = '1234';
@@ -75,6 +75,27 @@ function earnings(): Earnings {
   return { today: sum(history.filter((h) => h.at.startsWith(todayStr))), week, total: { amount: 412300 + week.amount, trips: rider.trips }, days, recent: history };
 }
 
+// ── Demo wallet ──
+const demoBanks: Bank[] = [
+  { code: '044', name: 'Access Bank' }, { code: '011', name: 'First Bank of Nigeria' }, { code: '058', name: 'Guaranty Trust Bank' },
+  { code: '50211', name: 'Kuda Bank' }, { code: '50515', name: 'Moniepoint MFB' }, { code: '999992', name: 'OPay Digital Services Limited (OPay)' },
+  { code: '999991', name: 'PalmPay' }, { code: '033', name: 'United Bank For Africa' }, { code: '035', name: 'Wema Bank' }, { code: '057', name: 'Zenith Bank' },
+];
+let bankAccount: Wallet['bankAccount'] = null;
+let paidOut = 0; // demo earnings already paid
+const unpaidStart = 6300; // yesterday's drops, not yet paid when the demo starts
+let payouts: PayoutItem[] = [
+  { id: 'po-1', amount: 8800, status: 'paid', trigger: 'auto', bankName: 'Guaranty Trust Bank', accountNumber: '******4021', failureReason: null,
+    createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), paidAt: new Date(Date.now() - 2 * 86400000).toISOString() },
+];
+function wallet(): Wallet {
+  const earned = unpaidStart + history.reduce((a, h) => a + h.amount, 0) - paidOut;
+  return {
+    balance: { earned, errandSpend: 0, cashCollected: 0, adjustments: 0, drops: history.length, available: earned },
+    minWithdrawal: 1000, autoPayoutHour: 21, bankAccount, payouts, payoutsEnabled: true,
+  };
+}
+
 export const mockBackend: RiderBackend = {
   mode: 'mock',
   otpLength: 4,
@@ -142,6 +163,37 @@ export const mockBackend: RiderBackend = {
   },
   async earnings() {
     return earnings();
+  },
+  async wallet() {
+    return wallet();
+  },
+  async banks() {
+    return demoBanks;
+  },
+  async checkBankAccount(bankCode, accountNumber) {
+    await wait(700);
+    const bank = demoBanks.find((b) => b.code === bankCode);
+    if (!bank || !/^\d{10}$/.test(accountNumber)) throw new Error('That account number and bank do not match. Check them and try again.');
+    return { bankName: bank.name, accountName: rider.name.toUpperCase() };
+  },
+  async saveBankAccount(bankCode, accountNumber) {
+    const { bankName, accountName } = await this.checkBankAccount(bankCode, accountNumber);
+    const changed = !!bankAccount;
+    bankAccount = { bankCode, bankName, accountName, accountNumber: '******' + accountNumber.slice(-4),
+      payoutsFrom: new Date(Date.now() + (changed ? 86400000 : 0)).toISOString() };
+    return wallet();
+  },
+  async withdraw() {
+    await wait(800);
+    const w = wallet();
+    if (!bankAccount) throw new Error('Add your bank account first');
+    if (new Date(bankAccount.payoutsFrom) > new Date()) throw new Error('Your new bank account can receive payouts from tomorrow');
+    if (w.balance.available < w.minWithdrawal) throw new Error(`You can withdraw once your balance reaches ₦${w.minWithdrawal.toLocaleString()}`);
+    const p: PayoutItem = { id: 'po-' + Date.now(), amount: w.balance.available, status: 'paid', trigger: 'rider', bankName: bankAccount.bankName,
+      accountNumber: bankAccount.accountNumber, failureReason: null, createdAt: new Date().toISOString(), paidAt: new Date().toISOString() };
+    paidOut += p.amount;
+    payouts = [p, ...payouts];
+    return { payout: { id: p.id, amount: p.amount, status: p.status }, wallet: wallet() };
   },
   async signOut() {
     signedIn = false;

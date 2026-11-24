@@ -14,6 +14,7 @@ import { NotRiderScreen, OtpScreen, PhoneScreen } from './src/screens/SignIn';
 import { TabsScreen } from './src/screens/Tabs';
 import { JobScreen } from './src/screens/Job';
 import { DeliverScreen } from './src/screens/Deliver';
+import { BankAccountScreen } from './src/screens/Wallet';
 
 function Screens() {
   const { route: r } = useNav();
@@ -24,6 +25,7 @@ function Screens() {
     case 'tabs': return <TabsScreen tab={r.tab} />;
     case 'job': return <JobScreen />;
     case 'deliver': return <DeliverScreen />;
+    case 'bank': return <BankAccountScreen />;
   }
 }
 
