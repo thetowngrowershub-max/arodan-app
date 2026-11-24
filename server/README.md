@@ -53,6 +53,30 @@ Rider app (signed in as a rider; see `db/migrations/005_riders.sql`):
 | GET | `/admin/merchants?status=pending` | Admins: merchants waiting for approval |
 | POST | `/admin/merchants/:id/status` | Admins: `{ status: 'live' }` to approve, `'suspended'` to pause |
 
+Push notifications (all three apps; see `db/migrations/006_push.sql`):
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| POST | `/push/register` | `{ token: 'ExponentPushToken[…]', app: 'customer' \| 'rider' \| 'merchant', platform }` after sign-in |
+| POST | `/push/unregister` | `{ token }` on sign-out |
+
+Rider payouts by Paystack transfer (see `db/migrations/007_payouts.sql` and `src/payouts.js`):
+
+| Method | Path | What it does |
+| --- | --- | --- |
+| GET | `/rider/wallet` | Balance (earnings + errand money spent − pay-on-delivery cash held ± adjustments), bank account (masked), last 20 payouts |
+| GET | `/rider/banks` | Nigerian banks (from Paystack, cached for a day) |
+| POST | `/rider/bank-account/check` | `{ bankCode, accountNumber }` → the account holder's name, for the rider to confirm |
+| PUT | `/rider/bank-account` | Save it (checked with the bank again). A changed account can't receive payouts for 24 hours |
+| POST | `/rider/payouts` | Withdraw the whole balance now (minimum `minWithdrawal`, default ₦1,000) |
+| POST | `/paystack/webhook` | Paystack transfer results (signature checked) |
+| GET | `/admin/payouts?status=processing` | Admins: payouts (`processing`, `paid`, `failed`) |
+| GET | `/admin/riders/balances` | Admins: every rider's balance |
+| POST | `/admin/riders/:id/adjustments` | Admins: `{ amount, note }`, e.g. `{ amount: 12500, note: 'POD cash handed in' }`; negative takes money off |
+| POST | `/admin/payouts/run` | Admins: pay everyone due now instead of waiting for the nightly run |
+
+Background jobs in the server: queued push notifications are sent every 3 seconds; payouts with no answer from Paystack are checked every 5 minutes; and at `autoPayoutHour` (21:00 Lagos by default) every rider with at least `minWithdrawal` is paid automatically. Setup steps are in [`docs/push-and-payouts-setup.md`](../docs/push-and-payouts-setup.md).
+
 Security: each request runs inside the database as the signed-in user, so the row level security rules in `db/migrations/002_app.sql` decide what anyone can see or change. Customers only ever see their own orders and addresses.
 
 ## Run it on your computer
@@ -102,7 +126,7 @@ Connect with any Postgres tool (TablePlus, DBeaver, pgAdmin, or `psql`):
   select id, 'Musa Ibrahim', '0803 111 2222', 'motorbike', 'LSR 123 AB', true, true, true from profiles where phone = '2348031112222';
   ```
   Pause a rider with `update riders set active = false where phone = '0803 111 2222';`
-- **Rider pay:** `pricing_config.config.riderPayout` (`deliveryShare` 0.8, `errandShare` 0.8, `minPerDrop` 800). What each rider earned is in `rider_earnings`; delivery photos and codes are in `delivery_proofs`.
+- **Rider pay:** `pricing_config.config.riderPayout` (`deliveryShare` 0.8, `errandShare` 0.8, `minPerDrop` 800, `minWithdrawal` 1000, `autoPayoutHour` 21 or `null` for no nightly run). What each rider earned is in `rider_earnings`; delivery photos and codes are in `delivery_proofs`.
 
 ## Before real customers
 

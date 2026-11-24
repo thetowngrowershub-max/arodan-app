@@ -40,6 +40,20 @@ export const config = {
       .filter((x) => x.length === 2 && x[0] && x[1]),
   ),
   corsOrigin: env.CORS_ORIGIN ?? '*',
+  // Rider bank payouts by Paystack transfer (https://paystack.com). Without a key, payouts are off.
+  paystack: {
+    secretKey: env.PAYSTACK_SECRET_KEY ?? '',
+    baseUrl: (env.PAYSTACK_BASE_URL ?? 'https://api.paystack.co').replace(/\/$/, ''),
+  },
+  // Push notifications through Expo's push service. The access token is only needed if you turn on
+  // "enhanced security for push notifications" in your Expo account.
+  push: {
+    enabled: env.PUSH_ENABLED !== 'false',
+    expoAccessToken: env.EXPO_ACCESS_TOKEN ?? '',
+    expoUrl: env.EXPO_PUSH_URL ?? 'https://exp.host/--/api/v2/push/send',
+  },
+  // Background jobs (sending push notifications, the nightly payout run). Off in tests.
+  workers: env.WORKERS !== 'false',
 };
 
 if (!['termii', 'messagecentral'].includes(config.smsProvider)) throw new Error('SMS_PROVIDER must be termii or messagecentral');

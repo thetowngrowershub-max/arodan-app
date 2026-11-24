@@ -10,6 +10,9 @@ import { getOrder, listOrders } from './orders.js';
 import { HttpError, str, UUID } from './http.js';
 import { merchantRoutes } from './merchant.js';
 import { registerRiderRoutes } from './rider.js';
+import { pushRoutes } from './push.js';
+import { payoutRoutes } from './payouts.js';
+import { startWorkers } from './workers.js';
 
 
 /** "0803 123 4567", "+234 803…", "803…" → "2348031234567". Null if not a Nigerian mobile number. */
@@ -255,6 +258,10 @@ export async function buildApp(opts = {}) {
 
   await merchantRoutes(app, { auth });
   registerRiderRoutes(app, { auth, HttpError });
+  pushRoutes(app, { auth });
+  payoutRoutes(app, { auth });
+
+  if (opts.workers) startWorkers(app);
 
   return app;
 }
