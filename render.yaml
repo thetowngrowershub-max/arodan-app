@@ -1,0 +1,53 @@
+# Render Blueprint: the Arodan API (Docker) and its PostgreSQL database.
+# In Render: New > Blueprint > pick this repo. See docs/render-setup.md.
+# Monthly cost with these plans (Render pricing, Nov 2026): API $7 + database $6 + storage ($0.30/GB).
+services:
+  - type: web
+    name: arodan-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: 0.5c-512mb # $7/month, always on. "free" works too but sleeps after 15 min idle (~1 min to wake)
+    region: frankfurt # closest Render region to Lagos; cannot be changed later
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: arodan-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: OTP_LENGTH
+        value: "6"
+      - key: SMS_PROVIDER
+        value: messagecentral
+      - key: MESSAGECENTRAL_CUSTOMER_ID
+        sync: false
+      - key: MESSAGECENTRAL_PASSWORD
+        sync: false
+      - key: MESSAGECENTRAL_FLOW
+        value: SMS
+      - key: TERMII_API_KEY
+        sync: false
+      - key: TEST_OTP_PHONES
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
+      # Rider bank payouts (Paystack secret key, sk_live_…). Leave empty until Paystack is set up.
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      # Only if "enhanced security for push notifications" is on in your Expo account.
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+
+databases:
+  - name: arodan-db
+    plan: 0.1c-256mb # $6/month. Avoid "free": Render deletes free databases after 30 days
+    region: frankfurt
+    databaseName: arodan
+    user: arodan
+    postgresMajorVersion: "16"

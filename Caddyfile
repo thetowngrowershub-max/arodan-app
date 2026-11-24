@@ -1,0 +1,6 @@
+# HTTPS in front of the API. Caddy gets and renews the certificate automatically.
+# DOMAIN comes from .env, e.g. api.arodan.ng or api.203-0-113-7.sslip.io
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy api:3000
+}

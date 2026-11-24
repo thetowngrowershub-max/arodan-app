@@ -1,6 +1,10 @@
 # Arodan customer app (prototype)
 
-One app for shopping, errands and delivery in Magodo Phase 2, Lagos. Built with Expo (React Native, SDK 58) so it runs on Android and iPhone from one codebase. All data is mock data: no real SMS, payments or riders yet.
+One app for shopping, errands and delivery in Magodo Phase 2, Lagos. Built with Expo (React Native, SDK 58) so it runs on Android and iPhone from one codebase.
+
+It runs in two modes:
+- **Offline demo** (default): fake data, sign-in code 1234, nothing leaves the phone.
+- **Real backend**: copy `.env.example` to `.env` and set `EXPO_PUBLIC_API_URL` to your Arodan API server. See [`../server/README.md`](../server/README.md) to run the server and database. Payments are still not charged in either mode.
 
 ## Try it on your phone (about 10 minutes, first time)
 
@@ -18,7 +22,7 @@ You need a computer (Windows or Mac) and your phone on the same Wi-Fi.
 6. A QR code appears. Android: scan it from inside Expo Go. iPhone: scan it with the Camera app.
    If your Wi-Fi blocks it, stop with Ctrl+C and run `npx expo start --tunnel` instead.
 
-Sign in with any Nigerian mobile number (e.g. 0803 123 4567). The demo code is **1234**.
+In the offline demo, sign in with any Nigerian mobile number (e.g. 0803 123 4567). The code is **1234**.
 
 To try it in a web browser instead: `npx expo start --web`.
 
@@ -46,12 +50,12 @@ To try it in a web browser instead: `npx expo start --web`.
 | `src/screens/` | All screens (onboarding, shop, checkout, errands, orders/tracking, tabs) |
 | `src/lib/pricing.ts` | Every fee and rate in one place |
 | `src/data/` | Mock catalogue, merchants and errand pickup spots |
-| `src/api/mock.ts` | Fake backend. Replace this file to connect a real server |
+| `src/api/` | `mock.ts` (offline demo) and `server.ts` (Arodan API server); `index.ts` picks one |
 | `src/theme.ts` | Option D colours and font (Sora, emerald #06805A, mango #FFB52E) |
 
 ## Next steps to launch
 
-1. Real backend (orders, users, merchant catalogue) and SMS codes (e.g. Termii).
+1. ~~Real backend~~ done (own Node.js server + PostgreSQL). Add a Termii API key for live SMS.
 2. Payments (Paystack or Flutterwave), real maps and rider location.
 3. Rider app and Merchant app on the same backend.
 4. Builds for testers with EAS (`npx eas-cli build`), then Play Store / App Store submission.

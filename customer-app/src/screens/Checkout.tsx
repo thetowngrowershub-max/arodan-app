@@ -4,14 +4,14 @@ import { BillCard, Button, Card, Header, ProductTile, Row, Stepper, Txt } from '
 import { Icon, IconName } from '../components/Icon';
 import { errandTypes, productById } from '../data/catalog';
 import { spotById } from '../data/places';
-import { naira, shortId } from '../lib/format';
+import { naira } from '../lib/format';
 import { errandFee } from '../lib/pricing';
 import { useNav } from '../nav';
 import { useApp } from '../store/AppContext';
 import { priceOrder } from '../store/checkout';
 import { colors, radius } from '../theme';
-import { placeOrder } from '../api/mock';
-import type { Errand, Order, PaymentMethod } from '../api/types';
+import { backend } from '../api';
+import type { Errand, PaymentMethod } from '../api/types';
 
 export function ErrandLine({ e, onRemove }: { e: Errand; onRemove?: () => void }) {
   const t = errandTypes.find((x) => x.id === e.type)!;
@@ -55,7 +55,7 @@ export function CartScreen() {
                   const p = productById(l.productId);
                   return (
                     <Row key={l.productId} style={{ gap: 12, paddingVertical: 6 }}>
-                      <View style={{ width: 56 }}><ProductTile emoji={p.emoji} h={56} size={28} /></View>
+                      <View style={{ width: 56 }}><ProductTile emoji={p.emoji} imageUrl={p.imageUrl} h={56} size={28} /></View>
                       <View style={{ flex: 1 }}>
                         <Txt v="h3" numberOfLines={1}>{p.name}</Txt>
                         <Txt v="small">{p.unit}</Txt>
@@ -107,24 +107,19 @@ export function CheckoutScreen({ errand }: { errand?: Errand }) {
   const { bill, quote, etaMin } = priceOrder(lines, errands);
   const [pay, setPay] = useState<PaymentMethod>('card');
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
 
   const submit = async () => {
     if (!address) return;
     setBusy(true);
-    const draft: Order = {
-      id: shortId(),
-      createdAt: Date.now(),
-      lines,
-      errands,
-      address,
-      quote,
-      bill,
-      payment: pay,
-      status: 'placed',
-      statusTimes: {},
-      etaMin,
-    };
-    const placed = await placeOrder(draft);
+    setErr('');
+    let placed;
+    try {
+      placed = await backend.placeOrder({ lines, errands, address, payment: pay });
+    } catch (e: any) {
+      setBusy(false);
+      return setErr(e?.message ?? 'Could not place the order. Try again.');
+    }
     addOrder(placed);
     if (!errand) clearCart();
     setBusy(false);
@@ -185,6 +180,7 @@ export function CheckoutScreen({ errand }: { errand?: Errand }) {
         </Row>
       </ScrollView>
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 20, paddingBottom: 28, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.line }}>
+        {err ? <Txt v="small" color={colors.danger} style={{ marginBottom: 8 }}>{err}</Txt> : null}
         <Button title={`${pay === 'pod' ? 'Place order' : 'Pay'} · ${naira(bill.total)}`} onPress={submit} loading={busy} disabled={!address} />
       </View>
     </View>
