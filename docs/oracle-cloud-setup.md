@@ -106,7 +106,7 @@ You should see `{"ok":true}`. You can also open that address in your phone's bro
 
 ## 8. Point the app at your server
 
-In `customer-app/.env` on your computer:
+In `app/.env` on your computer:
 
 ```
 EXPO_PUBLIC_API_URL=https://api.203-0-113-7.sslip.io

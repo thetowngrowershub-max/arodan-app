@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Arodan",
+    "slug": "arodan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arodan.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#06805A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.arodan.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Arodan shares your location with the customer and dispatch while you are riding (online or on a job)."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Arodan uses the camera for proof-of-delivery photos (riders) and product photos (merchants).",
+          "photosPermission": "Arodan uses your photos to show your products to customers (merchants)."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#06805A"
+        }
+      ]
+    ],
+    "splash": {
+      "backgroundColor": "#FFFFFF"
+    }
+  }
+}

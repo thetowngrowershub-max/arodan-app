@@ -138,10 +138,13 @@ export async function buildApp(opts = {}) {
     asUser(req.uid, async (db) => {
       const p = await db.query('select phone, full_name, role from profiles where id = auth.uid()');
       const a = await db.query('select * from addresses where user_id = auth.uid() order by is_default desc, created_at desc limit 1');
+      const roles = await db.query('select my_roles() as r');
       const prof = p.rows[0];
       return {
         user: prof ? { phone: prof.phone, name: prof.full_name ?? '', role: prof.role } : null,
         address: toAddress(a.rows[0]) ?? null,
+        // Riding and selling: none | pending | approved | paused (the app opens those parts only when approved).
+        roles: roles.rows[0].r,
       };
     }));
 

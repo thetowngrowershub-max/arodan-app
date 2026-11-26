@@ -16,16 +16,16 @@ Wording lives in `db/migrations/006_push.sql` (`on_order_event_push` and `on_ord
 
 ### What you need (about 1 hour, free)
 
-Push notifications do not work in Expo Go or the web preview. They need a proper build of each app, which is also what goes to the Play Store and App Store.
+Push notifications do not work in Expo Go or the web preview. They need a proper build of the app, which is also what goes to the Play Store and App Store.
 
 1. **Expo account** (free): sign up at https://expo.dev and install the tool: `npm install -g eas-cli`, then `eas login`.
-2. **Link each app to Expo**: in `customer-app/`, `rider-app/` and `merchant-app/`, run `eas init`. This adds `extra.eas.projectId` to `app.json`; commit that change.
+2. **Link the app to Expo**: in `app/`, run `eas init`. This adds `extra.eas.projectId` to `app.json`; commit that change.
 3. **Android (Firebase Cloud Messaging)**, needed for every Android phone:
    - Create a free Firebase project at https://console.firebase.google.com and add three Android apps with the package names `com.arodan.customer`, `com.arodan.rider` and `com.arodan.merchant` (check `android.package` in each `app.json`).
-   - Download each app's `google-services.json` into its folder and add `"googleServicesFile": "./google-services.json"` under `android` in that `app.json`.
+   - Download the app's `google-services.json` into `app/` and add `"googleServicesFile": "./google-services.json"` under `android` in `app/app.json`.
    - In Firebase > Project settings > Service accounts, create a private key (JSON) and upload it to Expo: `eas credentials` > Android > Google Service Account > "FCM V1".
 4. **iPhone** (only when you publish for iPhone): an Apple Developer account (US$99 a year). `eas build -p ios` creates the push key for you.
-5. **Build**: `eas build -p android --profile preview` in each app folder gives an installable APK to test with.
+5. **Build**: `eas build -p android --profile preview` in `app/` gives an installable APK to test with.
 
 The server needs nothing extra. Optional: if you turn on "Enhanced security for push notifications" in your Expo account, put the access token in Render as `EXPO_ACCESS_TOKEN`.
 

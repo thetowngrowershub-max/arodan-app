@@ -42,7 +42,7 @@ If it says **Deploy failed**, open the **Logs** tab and send me a screenshot of 
 
 ## 4. Point the app at it
 
-In `customer-app/.env` on your computer:
+In `app/.env` on your computer:
 
 ```
 EXPO_PUBLIC_API_URL=https://arodan-api.onrender.com

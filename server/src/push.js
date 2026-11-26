@@ -5,11 +5,12 @@ import { asUser, pool } from './db.js';
 import { config } from './config.js';
 import { HttpError, str } from './http.js';
 
-const APPS = ['customer', 'rider', 'merchant'];
+// 'arodan' = the single app for shoppers, riders and merchants: it gets every kind of message.
+const APPS = ['customer', 'rider', 'merchant', 'arodan'];
 const MAX_ATTEMPTS = 5;
 
 export function pushRoutes(app, { auth }) {
-  // { token: 'ExponentPushToken[…]', app: 'customer' | 'rider' | 'merchant', platform: 'ios' | 'android' }
+  // { token: 'ExponentPushToken[…]', app: 'arodan' (or the older 'customer' | 'rider' | 'merchant'), platform: 'ios' | 'android' }
   app.post('/push/register', { preHandler: auth }, async (req) => {
     const token = str(req.body?.token, 250);
     const which = str(req.body?.app, 20);
@@ -37,7 +38,7 @@ export async function sendPendingPush() {
       `select o.id, o.title, o.body, o.data, o.app, coalesce(array_agg(t.token) filter (where t.token is not null), '{}') as tokens
        from (select * from push_outbox where sent_at is null and attempts < $1 and created_at > now() - interval '1 hour'
              order by id limit 100 for update skip locked) o
-       left join push_tokens t on t.user_id = o.user_id and t.app = o.app
+       left join push_tokens t on t.user_id = o.user_id and (t.app = o.app or t.app = 'arodan')
        group by o.id, o.title, o.body, o.data, o.app order by o.id`, [MAX_ATTEMPTS]);
     if (!rows.length) {
       await client.query('commit');
