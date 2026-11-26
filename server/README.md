@@ -14,7 +14,7 @@ customer app  ──HTTPS──►  API server (this folder)  ──►  Postgre
 | --- | --- | --- |
 | POST | `/auth/otp` | Send a sign-in code to `{ phone }` by Termii or Message Central (max 5 an hour per number) |
 | POST | `/auth/verify` | Check `{ phone, code }`, returns a sign-in token (5 tries per code) |
-| GET / PUT | `/me` | Profile; PUT sets `{ name }` |
+| GET / PUT | `/me` | Profile, address and `roles` (`rider` and `merchant`: `none`, `pending`, `approved` or `paused`); PUT sets `{ name }` |
 | PUT | `/me/address` | Save the delivery address and gate details |
 | GET | `/catalog` | Categories, products, merchants, errand locations, pricing |
 | POST | `/quote` | Price a basket without ordering |
@@ -28,6 +28,7 @@ Rider app (signed in as a rider; see `db/migrations/005_riders.sql`):
 
 | Method | Path | What it does |
 | --- | --- | --- |
+| POST | `/rider/apply` | Apply to ride: `{ name, vehicle, plate, homeAddress, guarantorName, guarantorPhone }`. Can be sent again to correct details while in review |
 | GET | `/rider/me` | Rider profile, vetting checks and the job in progress |
 | POST | `/rider/online` | `{ online, lat?, lng? }`. Only fully vetted riders can go online |
 | POST | `/rider/location` | `{ lat, lng, heading?, speed? }`, sent every ~15 s. Customers see it on live orders |
@@ -53,7 +54,7 @@ Rider app (signed in as a rider; see `db/migrations/005_riders.sql`):
 | GET | `/admin/merchants?status=pending` | Admins: merchants waiting for approval |
 | POST | `/admin/merchants/:id/status` | Admins: `{ status: 'live' }` to approve, `'suspended'` to pause |
 
-Push notifications (all three apps; see `db/migrations/006_push.sql`):
+Push notifications (the app registers one token with `app: 'arodan'` for shopping, riding and selling; see `db/migrations/006_push.sql`):
 
 | Method | Path | What it does |
 | --- | --- | --- |
@@ -89,7 +90,7 @@ docker compose up -d --build
 curl http://localhost:3000/health
 ```
 
-Then in `customer-app/.env` set `EXPO_PUBLIC_API_URL=http://<your computer's Wi-Fi IP>:3000` and run `npx expo start`. Sign in with a number from `TEST_OTP_PHONES` and its code.
+Then in `app/.env` set `EXPO_PUBLIC_API_URL=http://<your computer's Wi-Fi IP>:3000` and run `npx expo start`. Sign in with a number from `TEST_OTP_PHONES` and its code.
 
 ## Put it online
 
@@ -114,18 +115,14 @@ If the database user can create roles (`CREATEROLE`), the database's own row lev
 ## Changing prices, products or orders
 
 Connect with any Postgres tool (TablePlus, DBeaver, pgAdmin, or `psql`):
-- **Prices:** edit `pricing_config.config` (same names as `customer-app/src/lib/pricing.ts`). Apps pick it up next time they open.
+- **Prices:** edit `pricing_config.config` (same names as `app/src/lib/pricing.ts`). Apps pick it up next time they open.
 - **Products:** merchants manage their own in the merchant app. Arodan's starter products (merchants `m1`–`m4`) are edited in the `products` table; set `active = false` to hide one.
 - **Approve a merchant:** `update merchants set status = 'live' where name = 'Bisi Provisions';` (or make yourself an admin with `update profiles set role = 'admin' where phone = '234…'` and use `/admin/merchants`).
 - **Move an order by hand:** `update orders set status = 'on_the_way' where code = 'AR100001';`
-- **Add a rider** (after their NIN, guarantor and address checks). They sign in to the rider app with this phone number:
-  ```sql
-  insert into auth.users (phone) values ('2348031112222');
-  update profiles set role = 'rider', full_name = 'Musa Ibrahim' where phone = '2348031112222';
-  insert into riders (id, display_name, phone, vehicle, plate, nin_verified, guarantor_confirmed, address_visited)
-  select id, 'Musa Ibrahim', '0803 111 2222', 'motorbike', 'LSR 123 AB', true, true, true from profiles where phone = '2348031112222';
-  ```
-  Pause a rider with `update riders set active = false where phone = '0803 111 2222';`
+- **Approve riders.** People apply in the app (Ride with Arodan). Applications wait until all three checks are ticked:
+  - With an admin account (`update profiles set role = 'admin' where phone = '234…';`): `GET /admin/riders?status=pending` lists applicants with their home address and guarantor; `POST /admin/riders/:id` with `{ "nin": true }`, `{ "guarantor": true }`, `{ "address": true }` ticks each check. Riding opens when all three are true. `{ "active": false }` pauses a rider (they go offline), `{ "active": true }` resumes.
+  - Or in SQL: `update riders set nin_verified = true, guarantor_confirmed = true, address_visited = true where phone = '0803 111 2222';`
+- **Approve shops:** `POST /admin/merchants/:id/status` with `{ "status": "live" }` (or `suspended`), or `update merchants set status = 'live' where …`.
 - **Rider pay:** `pricing_config.config.riderPayout` (`deliveryShare` 0.8, `errandShare` 0.8, `minPerDrop` 800, `minWithdrawal` 1000, `autoPayoutHour` 21 or `null` for no nightly run). What each rider earned is in `rider_earnings`; delivery photos and codes are in `delivery_proofs`.
 
 ## Before real customers

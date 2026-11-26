@@ -29,6 +29,29 @@ export function registerRiderRoutes(app, { auth, HttpError }) {
   const activeJob = async (db) => (await one(db, 'select rider_current_job() as j')).j;
 
   // Who am I as a rider, plus my job in progress. 403 for accounts that are not riders.
+  // Apply to ride (from the one Arodan app). Riding opens once Arodan has done the vetting checks.
+  app.post('/rider/apply', { preHandler: auth, config: { rateLimit: { max: 10, timeWindow: '10 minutes' } } }, async (req) =>
+    asUser(req.uid, async (db) => {
+      const b = req.body ?? {};
+      const p = {};
+      for (const k of ['name', 'vehicle', 'plate', 'homeAddress', 'guarantorName', 'guarantorPhone']) p[k] = typeof b[k] === 'string' ? b[k] : '';
+      const r = await one(db, 'select (rider_apply($1::jsonb)).*', [JSON.stringify(p)]);
+      return { rider: toRiderProfile(r) };
+    }));
+
+  // ───────── Ops: review rider applications (admin accounts only) ─────────
+  app.get('/admin/riders', { preHandler: auth }, async (req) =>
+    asUser(req.uid, async (db) => (await one(db, 'select admin_riders($1) as j', [typeof req.query?.status === 'string' ? req.query.status : ''])).j));
+
+  // { nin?, guarantor?, address?, active? } — true/false for each check, or to pause/resume.
+  app.post('/admin/riders/:id', { preHandler: auth }, async (req) => {
+    if (!UUID.test(req.params.id)) throw new HttpError(404, 'Rider not found');
+    const b = req.body ?? {};
+    const p = {};
+    for (const k of ['nin', 'guarantor', 'address', 'active']) if (typeof b[k] === 'boolean') p[k] = b[k];
+    return asUser(req.uid, async (db) => (await one(db, 'select admin_set_rider($1, $2::jsonb) as j', [req.params.id, JSON.stringify(p)])).j);
+  });
+
   app.get('/rider/me', { preHandler: auth }, async (req) =>
     asUser(req.uid, async (db) => {
       const r = await one(db, 'select (current_rider()).*');
